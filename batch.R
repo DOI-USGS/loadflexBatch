@@ -15,6 +15,9 @@ outputFormat <- "simple" #or "complex"
 #input constituents
 #script will look for folders with this name, and use in site metadata
 constituents <- c("NO3", "PT")
+loadUnits <- "kg"
+loadRateUnits <- "kg/d"
+
 
 inputFolder <- "three_ANA_sites" #folder containing all input subfolders
 outputFolder <- "./output"
@@ -25,7 +28,7 @@ siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 #read-in function
 
 makeFileDF <- function(input.folder, constits, discharge) {
-  #check that all constituent files have matching discharge records
+  #TODO:check that all constituent files have matching discharge records
   #df of corresponding files
   allFolders <- file.path(input.folder, c(constits, discharge))
   if(!all(dir.exists(allFolders))) {
@@ -64,6 +67,8 @@ annuals <- data.frame()
 for(i in 1:nrow(fileDF)) {
   message(paste('processing constituent file', fileDF$constitFile[i]))
   
+  #TODO: use siteInfo to get column names, fail if they aren't the same as directories
+  
   #read in appropriate files
   siteQ <- read.csv(fileDF$qFile[i], stringsAsFactors = FALSE)
   siteConstit <- read.csv(fileDF$constitFile[i], stringsAsFactors = FALSE)
@@ -89,8 +94,8 @@ for(i in 1:nrow(fileDF)) {
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
   siteMeta <- metadata(constituent = constitColName, flow = qColName, dates = dateColName,
-                       conc.units = constitSiteInfo$units, flow.units = qSiteInfo$units, load.units = "kg",
-                       load.rate.units = "kg/d", station = constitStation)
+                       conc.units = constitSiteInfo$units, flow.units = qSiteInfo$units, load.units = loadUnits,
+                       load.rate.units = loadRateUnits, station = constitStation)
     
   #TODO: site metrics
   siteMetrics <- summarizeSite(constitSiteInfo, siteConstit)
