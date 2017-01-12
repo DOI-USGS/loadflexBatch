@@ -2,8 +2,8 @@
 
 library(dplyr)
 library(loadflex)
-library(rloadest)
 library(tools)
+library(rloadest)
 
 #run loadflex over multiple sites
 
@@ -65,7 +65,7 @@ annuals <- data.frame()
 
 #loop over unique sites
 for(i in 1:nrow(fileDF)) {
-  message(paste('processing constituent file', fileDF$constitFile[i]))
+  message(paste('processing constituent file', fileDF$constitFile[i], '\n'))
   
   #TODO: use siteInfo to get column names, fail if they aren't the same as directories
   
@@ -94,8 +94,9 @@ for(i in 1:nrow(fileDF)) {
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
   siteMeta <- metadata(constituent = constitColName, flow = qColName, dates = dateColName,
-                       conc.units = constitSiteInfo$units, flow.units = qSiteInfo$units, load.units = loadUnits,
-                       load.rate.units = loadRateUnits, station = constitStation)
+                       conc.units = constitSiteInfo$constit_units, flow.units = qSiteInfo$constit_units, load.units = loadUnits,
+                       load.rate.units = loadRateUnits, station = constitStation, 
+                       consti.name = "test")
     
   #TODO: site metrics
   siteMetrics <- summarizeSite(constitSiteInfo, siteConstit)
@@ -144,6 +145,6 @@ for(i in 1:nrow(fileDF)) {
                                                "multiYear", paste0(constitStation, '.csv')))
    write.csv(x = annuals, file = file.path(outputFolder, constitName, 
                                            "annual", paste0(constitStation, '.csv')))
-   message(paste('Finished processing constituent file', fileDF$constitFile[i]))
+   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
 
