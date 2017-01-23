@@ -18,35 +18,36 @@ constituents <- c("NO3", "PT")
 loadUnits <- "kg"
 loadRateUnits <- "kg/d"
 
-
 inputFolder <- "three_ANA_sites" #folder containing all input subfolders
 outputFolder <- "./output"
-discharge <- "discharge" #subfolder of inputFolder containing discharge measurements for predictions
+dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
 siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
 #-------------------------Check files, set up directories-----------------------# 
 #read-in function
 
-makeFileDF <- function(input.folder, constits, discharge) {
+# make a data.frame describing the data files that exist in this directory for
+# the given constituents
+makeFileDF <- function(input.folder, constits, discharge.folder) {
   #TODO:check that all constituent files have matching discharge records
   #df of corresponding files
-  allFolders <- file.path(input.folder, c(constits, discharge))
+  allFolders <- file.path(input.folder, c(constits, discharge.folder))
   if(!all(dir.exists(allFolders))) {
     stop("Input or constituent folder does not exist")
   }
   
   #get all constituent files
-  constitFiles <- list.files(file.path(input.folder,constits), full.names = TRUE)
+  constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
   constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, discharge, constitNameOnly)
-  #TODO: warning if not matching discharge, will be skipped
+  qFiles <- file.path(input.folder, dischargeFolder, constitNameOnly)
+  #TODO: warning if not matching dischargeFolder, will be skipped
   #should deal with if a discharge file doesn't exist?
   
   fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
   return(fileDF)
 }
 
-fileDF <- makeFileDF(inputFolder, constits = constituents, discharge = discharge)
+fileDF <- makeFileDF(inputFolder, constits = constituents, discharge.folder = dischargeFolder)
 allSiteInfo <- read.csv(file.path(inputFolder, siteInfo), stringsAsFactors = FALSE)
 
 #setup output directories
