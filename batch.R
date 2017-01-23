@@ -1,3 +1,24 @@
+# This script runs loadflex in "batch mode": It fits several load estimation 
+# models for many constituents at many sites, generates and saves the 
+# predictions, and produces summaries over all models, constituents, and sites.
+
+# 1. Start by setting your working directory to the directory that contains this
+# script. The input directory (three_ANA_sites) should also be within this 
+# working directory.
+
+# 2. Modify the settings within the User Inputs section to match your input data
+# and preferences.
+
+# 3. Source this script, preferably within a clean R session with no additional
+# variables in the R environment.
+
+# 4. This script will add an output directory at the path indicated by 
+# outputFolder below. The current setting creates a folder called 'output' in
+# the same directory as this script.
+
+# 5. Inspect the plots and tables files in the output directory.
+
+
 #TODO: tests!
 
 library(dplyr)
@@ -18,50 +39,48 @@ constituents <- c("NO3", "PT")
 loadUnits <- "kg"
 loadRateUnits <- "kg/d"
 
-
 inputFolder <- "three_ANA_sites" #folder containing all input subfolders
 outputFolder <- "./output"
-discharge <- "discharge" #subfolder of inputFolder containing discharge measurements for predictions
+dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
 siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
 #-------------------------Check files, set up directories-----------------------# 
 #read-in function
 
-makeFileDF <- function(input.folder, constits, discharge) {
+# make a data.frame describing the data files that exist in this directory for
+# the given constituents
+makeFileDF <- function(input.folder, constits, discharge.folder) {
   #TODO:check that all constituent files have matching discharge records
   #df of corresponding files
-  allFolders <- file.path(input.folder, c(constits, discharge))
+  allFolders <- file.path(input.folder, c(constits, discharge.folder))
   if(!all(dir.exists(allFolders))) {
     stop("Input or constituent folder does not exist")
   }
   
   #get all constituent files
-  constitFiles <- list.files(file.path(input.folder,constits), full.names = TRUE)
+  constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
   constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, discharge, constitNameOnly)
-  #TODO: warning if not matching discharge, will be skipped
+  qFiles <- file.path(input.folder, dischargeFolder, constitNameOnly)
+  #TODO: warning if not matching dischargeFolder, will be skipped
   #should deal with if a discharge file doesn't exist?
   
   fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
   return(fileDF)
 }
 
-fileDF <- makeFileDF(inputFolder, constits = constituents, discharge = discharge)
+fileDF <- makeFileDF(inputFolder, constits = constituents, discharge.folder = dischargeFolder)
 allSiteInfo <- read.csv(file.path(inputFolder, siteInfo), stringsAsFactors = FALSE)
 
 #setup output directories
 nConstits <- length(constituents)
 outConstit <- file.path(rep(outputFolder, nConstits), constituents)
 sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
-outTemporal <- file.path(rep(outConstit,2), c(rep("annual", nConstits), rep("multiYear", nConstits)))
+outTemporal <- file.path(rep(outConstit,3), c(rep("inputs", nConstits), rep("annual", nConstits), rep("multiYear", nConstits)))
 sapply(outTemporal, dir.create, showWarnings = FALSE)
 
 #-----------------loadflex--------------#
 
-siteSummaries <- data.frame()
-modelSummaries <- data.frame()
-allModels <- list()
-annuals <- data.frame()
+allModels <- list() # this might get big. i'd prefer splitting & saving
 
 #loop over unique sites
 for(i in 1:nrow(fileDF)) {
@@ -84,8 +103,8 @@ for(i in 1:nrow(fileDF)) {
   constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
   
-  constitSiteInfo <- filter(allSiteInfo, station == constitStation, constituent == constitName)
-  qSiteInfo <- filter(allSiteInfo, station == constitStation, constituent == 'Q')
+  constitSiteInfo <- filter(allSiteInfo, matching.site == constitStation, constituent == constitName)
+  qSiteInfo <- filter(allSiteInfo, matching.site == constitStation, constituent == 'Q')
   
   #create metadata
   #not sure units etc are following the correct format
@@ -93,13 +112,21 @@ for(i in 1:nrow(fileDF)) {
   constitColName <- names(siteConstit)[3]
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
-  siteMeta <- metadata(constituent = constitColName, flow = qColName, dates = dateColName,
-                       conc.units = constitSiteInfo$constit_units, flow.units = qSiteInfo$constit_units, load.units = loadUnits,
-                       load.rate.units = loadRateUnits, station = constitStation, 
-                       consti.name = "test")
-    
-  #TODO: site metrics
-  siteMetrics <- summarizeSite(constitSiteInfo, siteConstit)
+  
+  # create a formal metadata object. site.id and flow.site.id must both equal
+  # constitStation for our input file scheme to work
+  siteMeta <- metadata(
+    constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
+    flow = qColName, flow.units = qSiteInfo$units, 
+    load.units = loadUnits, load.rate.units = loadRateUnits, dates = dateColName,
+    site.name = constitSiteInfo$site.name, site.id = constitSiteInfo$site.id, lat = constitSiteInfo$lat, lon = constitSiteInfo$lon, basin.area = constitSiteInfo$basin.area,
+    flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
+  )
+  
+  # compute and save info on the site, constituent, and input datasets (we'll
+  # recombine in the next loop)
+  inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
+  write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitStation, '.csv')), row.names=FALSE)
   
   #fit models
   #TODO: decide on standard column names?  user input timestep above?
@@ -109,15 +136,15 @@ for(i in 1:nrow(fileDF)) {
                                      flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
                                      conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
                                      load.units = getInfo(siteMeta, 'load.units')))
-   
+  
   interpRect <- loadInterp(interp.format = "conc", interp.function = rectangularInterpolation,
                            data = siteConstit, metadata = siteMeta)
   comp <- loadComp(reg.model = rloadest5param, interp.format = "conc", interp.function = rectangularInterpolation, 
                    interp.data = siteConstit)
- 
+  
   #list of all model objects
   allModels[[constitStation]] <- list(comp = comp, interpRect = interpRect, 
-                            rloadest5param = rloadest5param)
+                                      rloadest5param = rloadest5param)
   
   #make predictions
   pred_rload <- predictSolute(rloadest5param, "flux", siteQ, 
@@ -128,23 +155,44 @@ for(i in 1:nrow(fileDF)) {
                              date = TRUE)
   
   #TODO: model metrics
-  annualSite <- bind_rows(summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
-                      summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
-                      summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  
+  annualPreds <- bind_rows(
+    summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
+    summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
+    summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
+  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitStation, '.csv')), row.names=FALSE)
   
   #TODO: plots
   
   
-  #TODO: recombine into single dfs
-   siteSummaries <- bind_rows(siteSummaries, siteMetrics)
-   annuals <- bind_rows(annuals, annualSite)
-   
-   #TODO: verbose option to print output?
-   write.csv(x = siteMetrics, file = file.path(outputFolder, constitName, 
-                                               "multiYear", paste0(constitStation, '.csv')))
-   write.csv(x = annuals, file = file.path(outputFolder, constitName, 
-                                           "annual", paste0(constitStation, '.csv')))
-   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
+    
+  #TODO: verbose option to print output?
+  
+  #TODO: compute and save whatever is supposed to go in the multiYear data.frame for this site-constituent combo
+  # multiYearSummary <- ...
+  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitStation, '.csv')), row.names=FALSE)
+  
+  message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
 
+# recombine sumamries into single dfs
+summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outputFolder) {
+  csvType <- match.arg(csvType)
+  allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
+    constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
+    constitName <- basename(dirname(fileDF$constitFile[i]))
+    csvFile <- file.path(outputFolder, constitName, csvType, paste0(constitStation, '.csv'))
+    tryCatch({
+      suppressWarnings(read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE))
+    }, error=function(e) {
+      message(paste0('could not read ', csvFile), call.=FALSE)
+      NULL
+    })
+  }))
+  allCsvFile <- file.path(outputFolder, paste0(csvType, '.csv'))
+  message('the summary has been written to ', allCsvFile)
+  write.csv(allCsvs, allCsvFile, row.names=FALSE)
+  return(allCsvs)
+}
+allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
+allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
+allMultiYear <- summarizeCsvs('multiYear', fileDF, outputFolder) 
