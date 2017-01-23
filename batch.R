@@ -138,7 +138,7 @@ for(i in 1:nrow(fileDF)) {
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitStation, '.csv')))
+  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitStation, '.csv')), row.names=FALSE)
   
   #TODO: plots
   
@@ -148,7 +148,7 @@ for(i in 1:nrow(fileDF)) {
   
   #TODO: compute and save whatever is supposed to go in the multiYear data.frame for this site-constituent combo
   # multiYearSummary <- ...
-  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitStation, '.csv')))
+  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitStation, '.csv')), row.names=FALSE)
   
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
