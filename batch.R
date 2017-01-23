@@ -19,12 +19,15 @@
 # 5. Inspect the plots and tables files in the output directory.
 
 
-#TODO: tests!
-
 library(dplyr)
 library(loadflex)
 library(tools)
 library(rloadest)
+
+#need at least rloadest 0.4.4 for formula fix
+if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
+  stop("rloadest version 0.4.4 or greater is required")
+}
 
 #run loadflex over multiple sites
 
