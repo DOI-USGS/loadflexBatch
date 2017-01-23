@@ -54,7 +54,7 @@ allSiteInfo <- read.csv(file.path(inputFolder, siteInfo), stringsAsFactors = FAL
 nConstits <- length(constituents)
 outConstit <- file.path(rep(outputFolder, nConstits), constituents)
 sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
-outTemporal <- file.path(rep(outConstit,2), c(rep("annual", nConstits), rep("multiYear", nConstits)))
+outTemporal <- file.path(rep(outConstit,3), c(rep("inputs", nConstits), rep("annual", nConstits), rep("multiYear", nConstits)))
 sapply(outTemporal, dir.create, showWarnings = FALSE)
 
 #-----------------loadflex--------------#
@@ -101,6 +101,10 @@ for(i in 1:nrow(fileDF)) {
     
   #TODO: site metrics
   siteMetrics <- summarizeSite(constitSiteInfo, siteConstit)
+  # compute and save info on the site, constituent, and input datasets (we'll
+  # recombine in the next loop)
+  inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
+  write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitStation, '.csv')), row.names=FALSE)
   
   #fit models
   #TODO: decide on standard column names?  user input timestep above?
