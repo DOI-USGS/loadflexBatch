@@ -18,19 +18,6 @@
 
 # 5. Inspect the plots and tables files in the output directory.
 
-
-library(dplyr)
-library(loadflex)
-library(tools)
-library(rloadest)
-
-#need at least rloadest 0.4.4 for formula fix
-if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
-  stop("rloadest version 0.4.4 or greater is required")
-}
-
-#run loadflex over multiple sites
-
 #------------------User Inputs--------------------#
 
 #TODO: implement this
@@ -47,28 +34,18 @@ outputFolder <- "./output"
 dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
 siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
-#-------------------------Check files, set up directories-----------------------# 
-#read-in function
+#-------------------------Load packages, check files, set up directories-----------------------# 
 
-# make a data.frame describing the data files that exist in this directory for
-# the given constituents
-makeFileDF <- function(input.folder, constits, discharge.folder) {
-  #TODO:check that all constituent files have matching discharge records
-  #df of corresponding files
-  allFolders <- file.path(input.folder, c(constits, discharge.folder))
-  if(!all(dir.exists(allFolders))) {
-    stop("Input or constituent folder does not exist")
-  }
-  
-  #get all constituent files
-  constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
-  constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, dischargeFolder, constitNameOnly)
-  #TODO: warning if not matching dischargeFolder, will be skipped
-  #should deal with if a discharge file doesn't exist?
-  
-  fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
-  return(fileDF)
+library(dplyr)
+library(loadflex)
+library(tools)
+library(rloadest)
+library(gridExtra)
+source('batchHelperFunctions.R') #functions stored here
+
+#need at least rloadest 0.4.4 for formula fix
+if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
+  stop("rloadest version 0.4.4 or greater is required")
 }
 
 fileDF <- makeFileDF(inputFolder, constits = constituents, discharge.folder = dischargeFolder)
@@ -156,7 +133,10 @@ for(i in 1:nrow(fileDF)) {
                                se.pred = TRUE, date = TRUE)
   pred_comp <- predictSolute(comp, "flux", siteQ, se.pred = TRUE,
                              date = TRUE)
-  
+  nPreds <- nrow(siteQ)
+  allPreds <- bind_rows(pred_rload, pred_interp, pred_comp)
+  allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPred), rep("composite"))
+    
   #TODO: model metrics
   annualPreds <- bind_rows(
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
@@ -177,25 +157,6 @@ for(i in 1:nrow(fileDF)) {
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
 
-# recombine sumamries into single dfs
-summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outputFolder) {
-  csvType <- match.arg(csvType)
-  allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
-    constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
-    constitName <- basename(dirname(fileDF$constitFile[i]))
-    csvFile <- file.path(outputFolder, constitName, csvType, paste0(constitStation, '.csv'))
-    tryCatch({
-      suppressWarnings(read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE))
-    }, error=function(e) {
-      message(paste0('could not read ', csvFile), call.=FALSE)
-      NULL
-    })
-  }))
-  allCsvFile <- file.path(outputFolder, paste0(csvType, '.csv'))
-  message('the summary has been written to ', allCsvFile)
-  write.csv(allCsvs, allCsvFile, row.names=FALSE)
-  return(allCsvs)
-}
 allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
 allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
 allMultiYear <- summarizeCsvs('multiYear', fileDF, outputFolder) 
