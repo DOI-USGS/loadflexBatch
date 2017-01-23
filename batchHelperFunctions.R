@@ -44,13 +44,15 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outp
 
 #write plots to pdfs for a single site/constituent pair
 #handles "tall" preds data frame of multiple models
-writePDF <- function(file, intdat, estdat, allPreds, meta, inputCSV, annualCSV) {
+writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annualCSV) {
   pdf(file, height = 11, width = 8.5)
   
   #write csv data to pretty table
   #TODO: add titles
-  grid.table(inputCSV)
-  grid.table(annualCSV)
+  
+  input <- tableGrob(inputCSV)
+  annual <- tableGrob(annualCSV)
+  grid.arrange(input, annual, ncol= 1)
   
   #plots
   #are some of these going to be redundant with multiple models?

@@ -77,14 +77,14 @@ for(i in 1:nrow(fileDF)) {
   siteQ$date <- as.Date(siteQ$date)
   
   #pull out appropriate rows of allSiteInfo for Q and constit
-  #need to extract constit and stations from file paths, so we know 
+  #need to extract constit and sites from file paths, so we know 
   #what row of site info to look at
   #TODO: deal with different discharge/consituent drainage areas here?
-  constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
+  constitSite <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
   
-  constitSiteInfo <- filter(allSiteInfo, matching.site == constitStation, constituent == constitName)
-  qSiteInfo <- filter(allSiteInfo, matching.site == constitStation, constituent == 'Q')
+  constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
+  qSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == 'Q')
   
   #create metadata
   #not sure units etc are following the correct format
@@ -94,7 +94,7 @@ for(i in 1:nrow(fileDF)) {
   dateColName <- names(siteConstit)[1]
   
   # create a formal metadata object. site.id and flow.site.id must both equal
-  # constitStation for our input file scheme to work
+  # constitSite for our input file scheme to work
   siteMeta <- metadata(
     constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
     flow = qColName, flow.units = qSiteInfo$units, 
@@ -106,7 +106,7 @@ for(i in 1:nrow(fileDF)) {
   # compute and save info on the site, constituent, and input datasets (we'll
   # recombine in the next loop)
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
-  write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitStation, '.csv')), row.names=FALSE)
+  write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
   #TODO: decide on standard column names?  user input timestep above?
@@ -123,7 +123,7 @@ for(i in 1:nrow(fileDF)) {
                    interp.data = siteConstit)
   
   #list of all model objects
-  allModels[[constitStation]] <- list(comp = comp, interpRect = interpRect, 
+  allModels[[constitSite]] <- list(comp = comp, interpRect = interpRect, 
                                       rloadest5param = rloadest5param)
   
   #make predictions
@@ -135,24 +135,26 @@ for(i in 1:nrow(fileDF)) {
                              date = TRUE)
   nPreds <- nrow(siteQ)
   allPreds <- bind_rows(pred_rload, pred_interp, pred_comp)
-  allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPred), rep("composite"))
+  allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPreds), rep("composite", nPreds))
     
   #TODO: model metrics
   annualPreds <- bind_rows(
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitStation, '.csv')), row.names=FALSE)
+  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #TODO: plots
-  
+  writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
+                 intdat = siteConstit, estdat = siteQ, allPreds = allPreds, 
+                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
   
     
   #TODO: verbose option to print output?
   
   #TODO: compute and save whatever is supposed to go in the multiYear data.frame for this site-constituent combo
   # multiYearSummary <- ...
-  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitStation, '.csv')), row.names=FALSE)
+  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
