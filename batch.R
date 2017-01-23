@@ -59,10 +59,7 @@ sapply(outTemporal, dir.create, showWarnings = FALSE)
 
 #-----------------loadflex--------------#
 
-siteSummaries <- data.frame()
-modelSummaries <- data.frame()
-allModels <- list()
-annuals <- data.frame()
+allModels <- list() # this might get big. i'd prefer splitting & saving
 
 #loop over unique sites
 for(i in 1:nrow(fileDF)) {
@@ -146,15 +143,35 @@ for(i in 1:nrow(fileDF)) {
   #TODO: plots
   
   
-  #TODO: recombine into single dfs
-   siteSummaries <- bind_rows(siteSummaries, siteMetrics)
-   annuals <- bind_rows(annuals, annualSite)
-   
-   #TODO: verbose option to print output?
-   write.csv(x = siteMetrics, file = file.path(outputFolder, constitName, 
-                                               "multiYear", paste0(constitStation, '.csv')))
-   write.csv(x = annuals, file = file.path(outputFolder, constitName, 
-                                           "annual", paste0(constitStation, '.csv')))
-   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
+    
+  #TODO: verbose option to print output?
+  
+  #TODO: compute and save whatever is supposed to go in the multiYear data.frame for this site-constituent combo
+  # multiYearSummary <- ...
+  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitStation, '.csv')))
+  
+  message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
 
+# recombine sumamries into single dfs
+summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outputFolder) {
+  csvType <- match.arg(csvType)
+  allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
+    constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
+    constitName <- basename(dirname(fileDF$constitFile[i]))
+    csvFile <- file.path(outputFolder, constitName, csvType, paste0(constitStation, '.csv'))
+    tryCatch({
+      suppressWarnings(read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE))
+    }, error=function(e) {
+      message(paste0('could not read ', csvFile), call.=FALSE)
+      NULL
+    })
+  }))
+  allCsvFile <- file.path(outputFolder, paste0(csvType, '.csv'))
+  message('the summary has been written to ', allCsvFile)
+  write.csv(allCsvs, allCsvFile, row.names=FALSE)
+  return(allCsvs)
+}
+allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
+allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
+allMultiYear <- summarizeCsvs('multiYear', fileDF, outputFolder) 
