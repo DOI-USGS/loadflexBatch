@@ -1,3 +1,24 @@
+# This script runs loadflex in "batch mode": It fits several load estimation 
+# models for many constituents at many sites, generates and saves the 
+# predictions, and produces summaries over all models, constituents, and sites.
+
+# 1. Start by setting your working directory to the directory that contains this
+# script. The input directory (three_ANA_sites) should also be within this 
+# working directory.
+
+# 2. Modify the settings within the User Inputs section to match your input data
+# and preferences.
+
+# 3. Source this script, preferably within a clean R session with no additional
+# variables in the R environment.
+
+# 4. This script will add an output directory at the path indicated by 
+# outputFolder below. The current setting creates a folder called 'output' in
+# the same directory as this script.
+
+# 5. Inspect the plots and tables files in the output directory.
+
+
 #TODO: tests!
 
 library(dplyr)
