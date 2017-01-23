@@ -110,15 +110,15 @@ for(i in 1:nrow(fileDF)) {
                                      flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
                                      conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
                                      load.units = getInfo(siteMeta, 'load.units')))
-   
+  
   interpRect <- loadInterp(interp.format = "conc", interp.function = rectangularInterpolation,
                            data = siteConstit, metadata = siteMeta)
   comp <- loadComp(reg.model = rloadest5param, interp.format = "conc", interp.function = rectangularInterpolation, 
                    interp.data = siteConstit)
- 
+  
   #list of all model objects
   allModels[[constitStation]] <- list(comp = comp, interpRect = interpRect, 
-                            rloadest5param = rloadest5param)
+                                      rloadest5param = rloadest5param)
   
   #make predictions
   pred_rload <- predictSolute(rloadest5param, "flux", siteQ, 
@@ -129,10 +129,10 @@ for(i in 1:nrow(fileDF)) {
                              date = TRUE)
   
   #TODO: model metrics
-  annualSite <- bind_rows(summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
-                      summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
-                      summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  
+  annualPreds <- bind_rows(
+    summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
+    summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
+    summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
   
   #TODO: plots
   
