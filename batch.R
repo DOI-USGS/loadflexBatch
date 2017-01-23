@@ -137,6 +137,7 @@ for(i in 1:nrow(fileDF)) {
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
+  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitStation, '.csv')))
   
   #TODO: plots
   
