@@ -1,4 +1,4 @@
-file,site.id,site.name,lat,lon,basin.area,constituent,units
+matching.site,site.id,site.name,lat,lon,basin.area,constituent,units
 RONC02800,RONC02800,Ronc,1,1,100,NO3,mg L^-1
 RONC02800,RONC02800,Ronc,1,1,100,PT,mg L^-1
 RONC02800,RONC02800,Ronc,1,1,100,Q,cms
