@@ -85,8 +85,8 @@ for(i in 1:nrow(fileDF)) {
   constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
   
-  constitSiteInfo <- filter(allSiteInfo, station == constitStation, constituent == constitName)
-  qSiteInfo <- filter(allSiteInfo, station == constitStation, constituent == 'Q')
+  constitSiteInfo <- filter(allSiteInfo, file == constitStation, constituent == constitName)
+  qSiteInfo <- filter(allSiteInfo, file == constitStation, constituent == 'Q')
   
   #create metadata
   #not sure units etc are following the correct format
