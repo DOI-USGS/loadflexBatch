@@ -94,13 +94,17 @@ for(i in 1:nrow(fileDF)) {
   constitColName <- names(siteConstit)[3]
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
-  siteMeta <- metadata(constituent = constitColName, flow = qColName, dates = dateColName,
-                       conc.units = constitSiteInfo$constit_units, flow.units = qSiteInfo$constit_units, load.units = loadUnits,
-                       load.rate.units = loadRateUnits, station = constitStation, 
-                       consti.name = "test")
-    
-  #TODO: site metrics
-  siteMetrics <- summarizeSite(constitSiteInfo, siteConstit)
+  
+  # create a formal metadata object. site.id and flow.site.id must both equal
+  # constitStation for our input file scheme to work
+  siteMeta <- metadata(
+    constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
+    flow = qColName, flow.units = qSiteInfo$units, 
+    load.units = loadUnits, load.rate.units = loadRateUnits, dates = dateColName,
+    site.name = constitSiteInfo$site.name, site.id = constitSiteInfo$site.id, lat = constitSiteInfo$lat, lon = constitSiteInfo$lon, basin.area = constitSiteInfo$basin.area,
+    flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
+  )
+  
   # compute and save info on the site, constituent, and input datasets (we'll
   # recombine in the next loop)
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
