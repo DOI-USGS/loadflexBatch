@@ -44,11 +44,13 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outp
 
 #write plots to pdfs for a single site/constituent pair
 #handles "tall" preds data frame of multiple models
-writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annualCSV) {
+writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, 
+                           annualCSV, loadRegMod = NULL) {
   pdf(file, height = 11, width = 8.5)
   
   #write csv data to pretty table
-  #TODO: add titles
+  #TODO: add titles for different models
+  #TODO: deal with plots being wider than graphics device
   
   input <- tableGrob(inputCSV)
   annual <- tableGrob(annualCSV)
@@ -66,5 +68,13 @@ writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annua
     plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta)
   }
   
+  #rloadest has a nice report function - modify this to merge with 
+  #pdf above?
+  if(!is.null(loadRegMod)) {
+    #loadReport adds .pdf for you
+    rloadPath <- sub(pattern = "report.pdf", replacement = "rloadest_report", x = file)
+    loadReport(x = loadRegMod, file = paste("rloadest", rloadpath, sep = "_"))
+  }
+ 
   dev.off()
 }

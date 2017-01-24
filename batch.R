@@ -138,6 +138,11 @@ for(i in 1:nrow(fileDF)) {
   allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPreds), rep("composite", nPreds))
     
   #TODO: model metrics
+  #need to extract fitted model so rloadest functions can be used
+  metrics <- summarizeModel(getFittedModel(rloadest5param))
+  
+  
+  #make predictions
   annualPreds <- bind_rows(
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
@@ -147,7 +152,8 @@ for(i in 1:nrow(fileDF)) {
   #TODO: plots
   writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
                  intdat = siteConstit, estdat = siteQ, allPreds = allPreds, 
-                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
+                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds, 
+                 loadRegMod = getFittedModel(rloadest5param))
   
     
   #TODO: verbose option to print output?
