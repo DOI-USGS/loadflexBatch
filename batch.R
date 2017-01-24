@@ -137,10 +137,11 @@ for(i in 1:nrow(fileDF)) {
   allPreds <- bind_rows(pred_rload, pred_interp, pred_comp)
   allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPreds), rep("composite", nPreds))
     
-  #TODO: model metrics
+  #TODO: model metrics for non-rloadest models
+  #combine into DF with row for each model
   #need to extract fitted model so rloadest functions can be used
   metrics <- summarizeModel(getFittedModel(rloadest5param))
-  
+  write.csv(x = metrics, file = file.path(outputFolder, constitName, paste(constitSite, "modelMetrics.csv", sep = "_")), row.names = FALSE)
   
   #make predictions
   annualPreds <- bind_rows(
@@ -149,12 +150,10 @@ for(i in 1:nrow(fileDF)) {
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
   write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
   
-  #TODO: plots
+  #plots
   writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
                  intdat = siteConstit, estdat = siteQ, allPreds = allPreds, 
-                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds, 
-                 loadRegMod = getFittedModel(rloadest5param))
-  
+                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
     
   #TODO: verbose option to print output?
   
