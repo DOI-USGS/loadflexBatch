@@ -1,0 +1,84 @@
+# loadflexBatch
+
+This repository contains a demo script and data for running the `loadflex`
+package in batch mode, i.e., for multiple sites, constituents, and models.
+
+# Quick Start
+
+1. Open a new R session.
+
+2. Option A: If you've never installed `loadflex`, run these commands to install
+`loadflex` and its dependencies.
+```{r, eval=FALSE}
+install.packages(
+  c("devtools", "smwrData", "smwrBase", "smwrGraphs", "smwrStats", "smwrQW", "rloadest", "unitted"), 
+  repos=c("https://owi.usgs.gov/R", "https://cran.rstudio.com"), 
+  dependencies=TRUE, type="both")
+install.packages(
+  c("car", "dplyr", "ggplot2", "lubridate", "MASS", "Matrix"),
+  dependencies=TRUE, type="both")
+devtools::install_github("USGS-R/loadflex")
+```
+
+2. Option B: If you've installed `loadflex` in the past, run these commands to
+get any updates to `loadflex` or its dependencies.
+```{r, eval=FALSE}
+update.packages(
+  oldPkgs=c("smwrData", "smwrBase", "smwrGraphs", "smwrStats", "smwrQW", "rloadest", "unitted"),
+  dependencies=TRUE, repos=c("https://owi.usgs.gov/R", "https://cran.rstudio.com"))
+update.packages(
+  oldPkgs=c("car", "dplyr", "ggplot2", "lubridate", "MASS", "Matrix"),
+  dependencies=TRUE, type="both")
+devtools::install_github("USGS-R/loadflex")
+```
+
+3. Move into the directory where you want to add loadflexBatch as a
+subdirectory. For example, if you want to use your home directory:
+```{r, eval=1, echo=1}
+setwd("~")
+tdir <- tempdir()
+setwd(tdir)
+```
+
+4. Download and unzip the files in this batch mode demo.
+```{r}
+download.file("https://github.com/USGS-R/loadflexBatch/archive/master.zip", "loadflexBatch.zip")
+unzip("loadflexBatch.zip")
+success <- file.remove("loadflexBatch.zip")
+```
+
+5. Change into the loadflexBatch-master subdirectory and look around: you should
+see files including this `README.md`, the `batch.R` script, and the example
+input data folder `three_ANA_sites`.
+```{r}
+setwd("loadflexBatch-master")
+dir()
+```
+
+6. Open `batch.R` to read through the script and to change options in the User
+Inputs section if desired.
+```{r, eval=FALSE}
+file.edit('batch.R')
+```
+
+7. Run `batch.R`. You can do this from RStudio using the Source button at the
+top right of the editor pane (or using Ctrl+Shift+S/Cmd+Shift+S), or you can run
+the following line:
+```{r, eval=FALSE}
+source('batch.R')
+```
+
+8. Inspect the outputs. These are in the `output` directory (unless you've
+changed the `outputFolder` setting in the User Inputs section of `batch.R`).
+You'll probably want to open that directory in a file explorer, but you can also
+explore the contents from within R:
+```{r, echo=-1}
+setwd("loadflexBatch-master")
+dir('output')
+head(read.csv('output/annual.csv', header=TRUE, stringsAsFactors=FALSE))
+```
+
+```{r, echo=FALSE}
+# Clean up after ourselves
+unlink("loadflexBatch-master", recursive=TRUE)
+```
