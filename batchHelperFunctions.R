@@ -45,27 +45,41 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outp
 #write plots to pdfs for a single site/constituent pair
 #handles "tall" preds data frame of multiple models
 writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annualCSV) {
-  pdf(file, height = 11, width = 8.5)
+  #pdf(file, height = 11, width = 8.5)
   
   #write csv data to pretty table
   #TODO: add titles for different models
-  #TODO: deal with plots being wider than graphics device
   
-  input <- tableGrob(inputCSV)
-  annual <- tableGrob(annualCSV)
-  grid.arrange(input, annual, ncol= 1)
+  # input <- tableGrob(inputCSV)
+  # annual <- tableGrob(annualCSV)
+  # grid.arrange(input, annual, ncol= 1)
   
   #plots
   #are some of these going to be redundant with multiple models?
+  modelNames <- data.frame(short = c("rloadest", "interp", "composite"),
+                           long = c("rloadest 5 parameter model",
+                                    "Interpolation Model",
+                                    "Composite rloadest and interpolation model"),
+                           stringsAsFactors = FALSE)
   for(m in unique(allPreds$model)) {
     preds <- filter(allPreds, model == m)
+    modelLong <- modelNames$long[modelNames$short == m] 
+    
+    #page 1
+    par(omi = c(2,2,2,2))
     plotEGRET("multiPlotDataOverview", intdat, estdat, preds, meta)
+    title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
+    #page 2
     par(mfrow=c(2,1))
     plotEGRET("plotConcTimeDaily", intdat, estdat, preds, meta)
+    title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
     plotEGRET("plotFluxTimeDaily", intdat, estdat, preds, meta)
+    
+    #page 3
     par(mfrow=c(1,1))
     plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta)
+    title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
   }
   
-  dev.off()
+  #dev.off()
 }
