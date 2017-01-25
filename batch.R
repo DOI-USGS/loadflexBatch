@@ -58,6 +58,9 @@ sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
 outTemporal <- file.path(rep(outConstit,3), c(rep("inputs", nConstits), rep("annual", nConstits), rep("multiYear", nConstits)))
 sapply(outTemporal, dir.create, showWarnings = FALSE)
 
+lastConstit <- NULL
+graphics.off() #don't want open PDF connections
+
 #-----------------loadflex--------------#
 
 allModels <- list() # this might get big. i'd prefer splitting & saving
@@ -82,6 +85,21 @@ for(i in 1:nrow(fileDF)) {
   #TODO: deal with different discharge/consituent drainage areas here?
   constitSite <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
+  
+  #if switching to a new consituent, open a new pdf
+  #important that fileDF is sorted by consituent!
+  #this should be the case the way makeFileDF looks at folders
+  if(is.null(lastConstit)) {
+    pdf(height = 11, width = 8.5, 
+        file = file.path(outputFolder, constitName, "plots.pdf")) 
+    lastConstit <- constitName
+  }
+  if(constitName != lastConstit) {
+    lastConstit <- constitName
+    dev.off()
+    pdf(height = 11, width = 8.5, 
+        file = file.path(outputFolder, constitName, "plots.pdf"))
+  }
   
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
   qSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == 'Q')
@@ -163,6 +181,9 @@ for(i in 1:nrow(fileDF)) {
   
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
+
+#close the final pdf
+dev.off()
 
 allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
 allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
