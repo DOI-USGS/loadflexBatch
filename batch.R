@@ -82,10 +82,9 @@ for(i in 1:nrow(fileDF)) {
   #pull out appropriate rows of allSiteInfo for Q and constit
   #need to extract constit and sites from file paths, so we know 
   #what row of site info to look at
-  #TODO: deal with different discharge/consituent drainage areas here?
   constitSite <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
-  
+ 
   #if switching to a new consituent, open a new pdf
   #important that fileDF is sorted by consituent!
   #this should be the case the way makeFileDF looks at folders
@@ -103,6 +102,15 @@ for(i in 1:nrow(fileDF)) {
   
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
   qSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == 'Q')
+  
+  #deal with different discharge/consituent drainage areas here?
+  if(qSiteInfo$basin.area != constitSiteInfo$basin.area) {
+    ratio <- constitSiteInfo$basin.area/qSiteInfo$basin.area
+    #modify discharge for both DFs
+    siteConstit$Q <- siteConstit$Q*ratio
+    siteQ$Q <- siteQ$Q*ratio
+    message("Scaling discharge by basin area")
+  }
   
   #create metadata
   #not sure units etc are following the correct format
