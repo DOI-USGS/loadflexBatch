@@ -77,7 +77,7 @@ writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annua
     
     #page 3
     par(mfrow=c(1,1))
-    plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta)
+    plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta, moreTitle = modelLong)
     title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
   }
   
