@@ -71,9 +71,9 @@ writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annua
     title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
     #page 2
     par(mfrow=c(2,1))
-    plotEGRET("plotConcTimeDaily", intdat, estdat, preds, meta)
+    plotEGRET("plotConcTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0))
     title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
-    plotEGRET("plotFluxTimeDaily", intdat, estdat, preds, meta)
+    plotEGRET("plotFluxTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0))
     
     #page 3
     par(mfrow=c(1,1))
