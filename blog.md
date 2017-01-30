@@ -28,22 +28,22 @@ keywords:
 ---
 ### Loadflex Batch Script
 
-This script automates running various load models for different sites and consitutents, using the `loadflex` package along with some features of `rloadest`. Output is collated across all sites in order for easy analysis of input data, predicted loads, and model metrics. This post will go through basic setup and use of the script as it exists now. In the future it may be hardened into a part of the actual `loadflex` package.
+This script automates running various load models for different sites and consitutents, using the `loadflex` package along with some features of `rloadest`. Output is collated across all sites for easy analysis of input data, predicted loads, and model metrics. This post will go through basic setup and use of the script as it exists now. In the future it may be hardened into a part of the actual `loadflex` package.
 
 Installation and setup
 ----------------------
 
-First, go to [the Github repository](https://github.com/USGS-R/loadflexBatch) and dowload the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
+First, go to [the Github repository](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
 
 ``` r
 list.files()
 ```
 
-    ## [1] "batch.R"                "batchHelperFunctions.R"
-    ## [3] "blog.Rmd"               "loadflexBatch.Rproj"   
-    ## [5] "output"                 "README.html"           
-    ## [7] "README.md"              "README.Rmd"            
-    ## [9] "three_ANA_sites"
+    ##  [1] "batch.R"                "batchHelperFunctions.R"
+    ##  [3] "blog.md"                "blog.Rmd"              
+    ##  [5] "loadflexBatch.Rproj"    "output"                
+    ##  [7] "README.html"            "README.md"             
+    ##  [9] "README.Rmd"             "three_ANA_sites"
 
 Next, we need to install the packages that the script uses. In your console, run
 
@@ -71,6 +71,10 @@ Open the main script, `batch.R`. There are some basic instructions at the top. B
 
 Here is input consituent data formatting:
 
+``` r
+head(read.csv('three_ANA_sites/NO3/MOGU02900.csv'), 5)
+```
+
     ##         date         Q  NO3 CODIGO_ESTACAO
     ## 1 2001-02-06 285.00034 0.27      MOGU02900
     ## 2 2001-04-03 305.36021 0.28      MOGU02900
@@ -91,7 +95,7 @@ The script reads, processes, and writes output for each site/consituent combinat
 
 All the site metadata is stored in `loadflex::metadata` objects, where it is referenced throughout the script.
 
-If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio.
+If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio. The resulting estimates descibe fluxes at the water quality monitoring site.
 
 Output
 ------
