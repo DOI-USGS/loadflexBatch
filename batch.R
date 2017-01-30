@@ -171,11 +171,20 @@ for(i in 1:nrow(fileDF)) {
   write.csv(x = metrics, file = file.path(outputFolder, constitName, paste(constitSite, "modelMetrics.csv", sep = "_")), row.names = FALSE)
   
   #make predictions
-  annualPreds <- bind_rows(
+  annualSummary <- bind_rows(
+    summarizePreds(pred_rload, siteMeta, "annual", model.name = "rloadest"),
+    summarizePreds(pred_interp, siteMeta, "annual", model.name = "interpolation"),
+    summarizePreds(pred_comp, siteMeta, "annual", model.name = "composite"))
+  annualSummary <- reshape(annualSummary, idvar = "Water_Year", direction = "wide", 
+                           v.names = c("Flux_Rate","SE", "CI_lower", "CI_upper"), timevar = "model")
+  write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
+  
+  multiYearSummary <- bind_rows(
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  write.csv(x = annualPreds, file = file.path(outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
+  multiYearSummary <- reshape(multiYearSummary, idvar = "site.id", direction = "wide", v.names = "multi_year_avg", timevar = "model")
+  write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #plots
   writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
@@ -184,9 +193,7 @@ for(i in 1:nrow(fileDF)) {
     
   #TODO: verbose option to print output?
   
-  #TODO: compute and save whatever is supposed to go in the multiYear data.frame for this site-constituent combo
-  # multiYearSummary <- ...
-  # write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
+  
   
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
