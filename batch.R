@@ -20,27 +20,28 @@
 
 #------------------User Inputs--------------------#
 
-#TODO: implement this
-outputFormat <- "simple" #or "complex"
+inputFolder <- "three_ANA_sites" #folder containing all input subfolders
 
 #input constituents
-#script will look for folders with this name, and use in site metadata
+#script will look for folders with this name inside inputFolder, 
+#and use in site metadata
 constituents <- c("NO3", "PT")
 loadUnits <- "kg"
 loadRateUnits <- "kg/d"
 
-inputFolder <- "three_ANA_sites" #folder containing all input subfolders
-outputFolder <- "./output"
 dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
 siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
+outputFolder <- "./output"  #output files and subfolders created here
+
+#TODO: implement this
+outputFormat <- "simple" #or "complex"
 #-------------------------Load packages, check files, set up directories-----------------------# 
 
 library(dplyr)
 library(loadflex)
 library(tools)
 library(rloadest)
-library(gridExtra)
 source('batchHelperFunctions.R') #functions stored here
 
 #need at least rloadest 0.4.4 for formula fix
@@ -103,7 +104,7 @@ for(i in 1:nrow(fileDF)) {
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
   qSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == 'Q')
   
-  #deal with different discharge/consituent drainage areas here?
+  #deal with different discharge/consituent drainage areas
   if(qSiteInfo$basin.area != constitSiteInfo$basin.area) {
     ratio <- constitSiteInfo$basin.area/qSiteInfo$basin.area
     #modify discharge for both DFs

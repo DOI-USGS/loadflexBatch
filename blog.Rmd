@@ -1,0 +1,70 @@
+---
+title: "Loadflex Batch Mode"
+slug: "loadflex-batch"
+author: "David Watkins"
+date: "YYYY-MM-DD"
+output: USGSmarkdowntemplates::hugo
+---
+```{r setup, include=FALSE}
+library(knitr)
+
+knit_hooks$set(plot=function(x, options) {
+  sprintf("<img src='/%s%s-%d.%s'/>", 
+          options$fig.path, options$label, options$fig.cur, options$fig.ext)
+
+})
+
+opts_chunk$set(
+  echo=TRUE,
+  fig.path="static/loadflex-batch/"
+)
+```
+### Loadflex Batch Script
+  This script automates running various load models for different sites and consitutents, using the `loadflex` package along with some features of `rloadest`.  Output is collated across all sites for easy analysis of input data, predicted loads, and model metrics.  This post will go through basic setup and use of the script as it exists now.  In the future it may be hardened into a part of the actual `loadflex` package.    
+
+## Installation and setup
+  First, go to [the Github repository](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -> New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
+```{r} 
+list.files()
+```
+  
+ Next, we need to install the packages that the script uses.  In your console, run 
+```{r eval = FALSE}
+install.packages('dplyr', 'loadflex', 'rloadest', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+```
+
+Now we are ready to look at the user inputs, file structure, and run the script.
+
+## Input parameters and directory setup
+Open the main script, `batch.R`.  There are some basic instructions at the top.  Below that are the user inputs, set up for the included example data.  The user supplies information about input/output folder names and locations, constituents, load units, and load rate units.  The consituent names need to the match the names of the input subfolders that contain the input data (paired water quality and discharge measurements).  The discharge folder, containing the discharge measurements used to make the load predictions, works the same way.  `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites.  Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
+```{r echo = FALSE}
+read.csv('three_ANA_sites/siteInfo.csv')
+```
+
+Here is input consituent data formatting:
+```{r}
+head(read.csv('three_ANA_sites/NO3/MOGU02900.csv'), 5)
+```
+
+Once the input parameters are set correctly, you can source the script.  It is configured to run with the included example data to start.
+```{r eval = FALSE}
+source('batch.R')
+```
+
+## Behind the scenes
+
+The script reads, processes, and writes output for each site/consituent combination individually.  Currently, it runs three models for each iteration — the `rloadest` 5-parameter regression model, an interpolation model from `loadflex`, and a composite interpolation-regression model also from `loadflex`.  Additional models can be added with some  modifications to the script. 
+
+All the site metadata is stored in `loadflex::metadata` objects, where it is referenced throughout the script.
+
+If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio.  The resulting estimates descibe fluxes at the water quality monitoring site.  
+
+## Output
+Like the input files, the output files are written to a separate folder for each constituent. Output is divided into three files, which cover all the sites for that consituent: a .csv of input data summary information, a .csv of model metrics, and a PDF of plots of input data, predicted loads, and model diagnostics.      
+
+
+## Conventions to remember
+* Column names and metadata slots for site information are assumed to refer to the water quality site, unless the name specifies they refer to discharge.
+
+* Constituent and discharge symbols need to be consistent throughout, including directory names and in the site metadata csv.
+
