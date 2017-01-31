@@ -170,8 +170,8 @@ for(i in 1:nrow(fileDF)) {
   #TODO: model metrics for non-rloadest models
   #combine into DF with row for each model
   #need to extract fitted model so rloadest functions can be used
-  metrics <- summarizeModel(getFittedModel(rloadest5param))
-  write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste(constitSite, "modelMetrics.csv", sep = "_")), row.names = FALSE)
+  metrics <- summarizeModel(getFittedModel(rloadest5param), constituent = constitName, site = constitSite)
+  write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   #make predictions
   annualSummary <- bind_rows(
@@ -209,3 +209,5 @@ dev.off()
 allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
 allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
 allMultiYear <- summarizeCsvs('multiYear', fileDF, outputFolder) 
+allModelMetrics <- summarizeCsvs('modelMetrics', fileDF, outputFolder)
+
