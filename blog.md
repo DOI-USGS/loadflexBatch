@@ -40,10 +40,12 @@ list.files()
 ```
 
     ##  [1] "batch.R"                "batchHelperFunctions.R"
-    ##  [3] "blog.md"                "blog.Rmd"              
-    ##  [5] "loadflexBatch.Rproj"    "output"                
-    ##  [7] "README.html"            "README.md"             
-    ##  [9] "README.Rmd"             "three_ANA_sites"
+    ##  [3] "blog.html"              "blog.md"               
+    ##  [5] "blog.Rmd"               "loadflexBatch.Rproj"   
+    ##  [7] "NO3.csv"                "output"                
+    ##  [9] "PT.csv"                 "README.html"           
+    ## [11] "README.md"              "README.Rmd"            
+    ## [13] "three_ANA_sites"
 
 Next, we need to install the packages that the script uses. In your console, run
 
@@ -100,7 +102,16 @@ If the drainage basin areas for paired water quality and discharge sites are dif
 Output
 ------
 
-Like the input files, the output files are written to a separate folder for each constituent. Output is divided into three files, which cover all the sites for that consituent: a .csv of input data summary information, a .csv of model metrics, and a PDF of plots of input data, predicted loads, and model diagnostics.
+Like the input files, the output files are written to a separate folder for each constituent. Output contains 5 files, which cover all the sites for that consituent:
+
+-   four .csvs:
+    -   input data summary
+    -   annual predicted loads for each model
+    -   multiyear predicted loads for each model
+    -   model metrics
+-   PDF of plots of input data, predicted loads, and model diagnostics
+
+Additionally, there are four folders corresponding to the four csvs that contain individual .csv files for each site.
 
 Conventions to remember
 -----------------------
