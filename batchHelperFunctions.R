@@ -36,9 +36,17 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outp
       NULL
     })
   }))
-  allCsvFile <- file.path(outputFolder, paste0(csvType, '.csv'))
-  message('the summary has been written to ', allCsvFile)
-  write.csv(allCsvs, allCsvFile, row.names=FALSE)
+  
+  #write separate csvs for each constituent
+  constits <- unique(allCsvs$constituent)
+  sapply(constits, function(con) {
+    writeFile = file.path(outputFolder, con, paste0(con,"_", csvType,".csv"))
+    write.csv(filter(allCsvs, constituent == con), 
+              file = writeFile, 
+              row.names = FALSE)
+    message('the ', con, ' ', csvType, ' summary has been written to ', writeFile)
+    })
+  
   return(allCsvs)
 }
 

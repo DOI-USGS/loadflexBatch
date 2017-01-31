@@ -56,7 +56,10 @@ allSiteInfo <- read.csv(file.path(inputFolder, siteInfo), stringsAsFactors = FAL
 nConstits <- length(constituents)
 outConstit <- file.path(rep(outputFolder, nConstits), constituents)
 sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
-outTemporal <- file.path(rep(outConstit,3), c(rep("inputs", nConstits), rep("annual", nConstits), rep("multiYear", nConstits)))
+outTemporal <- file.path(rep(outConstit,4), c(rep("inputs", nConstits), 
+                                              rep("annual", nConstits), 
+                                              rep("multiYear", nConstits), 
+                                              rep("modelMetrics", nConstits)))
 sapply(outTemporal, dir.create, showWarnings = FALSE)
 
 lastConstit <- NULL
@@ -168,7 +171,7 @@ for(i in 1:nrow(fileDF)) {
   #combine into DF with row for each model
   #need to extract fitted model so rloadest functions can be used
   metrics <- summarizeModel(getFittedModel(rloadest5param))
-  write.csv(x = metrics, file = file.path(outputFolder, constitName, paste(constitSite, "modelMetrics.csv", sep = "_")), row.names = FALSE)
+  write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste(constitSite, "modelMetrics.csv", sep = "_")), row.names = FALSE)
   
   #make predictions
   annualSummary <- bind_rows(
@@ -177,13 +180,15 @@ for(i in 1:nrow(fileDF)) {
     summarizePreds(pred_comp, siteMeta, "annual", model.name = "composite"))
   annualSummary <- reshape(annualSummary, idvar = "Water_Year", direction = "wide", 
                            v.names = c("Flux_Rate","SE", "CI_lower", "CI_upper"), timevar = "model")
-  write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
+  write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", 
+                                                paste0(constitSite, '.csv')), row.names=FALSE)
   
   multiYearSummary <- bind_rows(
     summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
     summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
     summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
-  multiYearSummary <- reshape(multiYearSummary, idvar = "site.id", direction = "wide", v.names = "multi_year_avg", timevar = "model")
+  multiYearSummary <- reshape(multiYearSummary, idvar = "site.id", direction = "wide", 
+                              v.names = c("multi_year_avg", "SE", "CI_lower", "CI_upper"), timevar = "model")
   write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #plots
