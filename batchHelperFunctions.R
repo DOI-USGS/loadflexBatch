@@ -23,7 +23,8 @@ makeFileDF <- function(input.folder, constits, discharge.folder) {
 
 
 # recombine summaries into single dfs
-summarizeCsvs <- function(csvType=c('inputs','annual','multiYear'), fileDF, outputFolder) {
+summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics'), 
+                          fileDF, outputFolder) {
   csvType <- match.arg(csvType)
   allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
     constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 

@@ -60,8 +60,17 @@ All the site metadata is stored in `loadflex::metadata` objects, where it is ref
 If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio.  The resulting estimates descibe fluxes at the water quality monitoring site.  
 
 ## Output
-Like the input files, the output files are written to a separate folder for each constituent. Output is divided into three files, which cover all the sites for that consituent: a .csv of input data summary information, a .csv of model metrics, and a PDF of plots of input data, predicted loads, and model diagnostics.      
+Like the input files, the output files are written to a separate folder for each constituent. Output contains 5 files, which cover all the sites for that consituent: 
 
+* four .csvs:
+    * input data summary
+    * annual predicted loads for each model
+    * multiyear predicted loads for each model
+    * model metrics 
+    
+* PDF of plots of input data, predicted loads, and model diagnostics
+      
+Additionally, there are four folders corresponding to the four csvs that contain individual .csv files for each site.
 
 ## Conventions to remember
 * Column names and metadata slots for site information are assumed to refer to the water quality site, unless the name specifies they refer to discharge.
