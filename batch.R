@@ -158,15 +158,15 @@ for(i in 1:nrow(fileDF)) {
                                       rloadest5param = rloadest5param)
   
   #make predictions
-  pred_rload <- predictSolute(rloadest5param, "flux", siteQ, 
-                              se.pred = TRUE, date = TRUE)
-  pred_interp <- predictSolute(interpRect, "flux", siteQ, 
-                               se.pred = TRUE, date = TRUE)
-  pred_comp <- predictSolute(comp, "flux", siteQ, se.pred = TRUE,
-                             date = TRUE)
+  pconc_rload <- predictSolute(rloadest5param, "conc", siteQ, se.pred = TRUE, date = TRUE)
+  pconc_interp <- predictSolute(interpRect, "conc", siteQ, se.pred = TRUE, date = TRUE)
+  pconc_comp <- predictSolute(comp, "conc", siteQ, se.pred = TRUE, date = TRUE)
+  pflux_rload <- predictSolute(rloadest5param, "flux", siteQ, se.pred = TRUE, date = TRUE)
+  pflux_interp <- predictSolute(interpRect, "flux", siteQ, se.pred = TRUE, date = TRUE)
+  pflux_comp <- predictSolute(comp, "flux", siteQ, se.pred = TRUE, date = TRUE)
   nPreds <- nrow(siteQ)
-  allPreds <- bind_rows(pred_rload, pred_interp, pred_comp)
-  allPreds$model <- c(rep("rloadest",nPreds), rep("interp",nPreds), rep("composite", nPreds))
+  allPreds <- bind_rows(pconc_rload, pconc_interp, pconc_comp)
+  allPreds$model <- rep(c('rloadest','interp','composite'), each=nPreds)
     
   #TODO: model metrics for non-rloadest models
   #combine into DF with row for each model
@@ -176,18 +176,18 @@ for(i in 1:nrow(fileDF)) {
   
   #make predictions
   annualSummary <- bind_rows(
-    summarizePreds(pred_rload, siteMeta, "annual", model.name = "rloadest"),
-    summarizePreds(pred_interp, siteMeta, "annual", model.name = "interpolation"),
-    summarizePreds(pred_comp, siteMeta, "annual", model.name = "composite"))
+    summarizePreds(pflux_rload, siteMeta, "annual", model.name = "rloadest"),
+    summarizePreds(pflux_interp, siteMeta, "annual", model.name = "interpolation"),
+    summarizePreds(pflux_comp, siteMeta, "annual", model.name = "composite"))
   annualSummary <- reshape(annualSummary, idvar = "Water_Year", direction = "wide", 
                            v.names = c("Flux_Rate","SE", "CI_lower", "CI_upper"), timevar = "model")
   write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", 
                                                 paste0(constitSite, '.csv')), row.names=FALSE)
   
   multiYearSummary <- bind_rows(
-    summarizePreds(pred_rload, siteMeta, "total", model.name = "rloadest"),
-    summarizePreds(pred_interp, siteMeta, "total", model.name = "interpolation"),
-    summarizePreds(pred_comp, siteMeta, "total", model.name = "composite"))
+    summarizePreds(pflux_rload, siteMeta, "total", model.name = "rloadest"),
+    summarizePreds(pflux_interp, siteMeta, "total", model.name = "interpolation"),
+    summarizePreds(pflux_comp, siteMeta, "total", model.name = "composite"))
   multiYearSummary <- reshape(multiYearSummary, idvar = "site.id", direction = "wide", 
                               v.names = c("multi_year_avg", "SE", "CI_lower", "CI_upper"), timevar = "model")
   write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
