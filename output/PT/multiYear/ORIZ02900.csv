@@ -1,2 +1,2 @@
-"","station","station_name","latitude","longitude","drainage_area","constituent","constit_units","start","end","n"
-"1","ORIZ02900","Oriz",3,3,300,"PT","mg L^-1",2002-11-28,2014-12-02,78
+"site.id","constituent","multi_year_avg.rloadest","SE.rloadest","CI_lower.rloadest","CI_upper.rloadest","multi_year_avg.interpolation","SE.interpolation","CI_lower.interpolation","CI_upper.interpolation","multi_year_avg.composite","SE.composite","CI_lower.composite","CI_upper.composite"
+"ORIZ02900","PT",90.9574736749129,1.23977739161814,88.5275546384943,93.3873927113314,93.070738506152,1.66577996104698,89.8058697763314,96.3356072359726,86.6551049092853,2.23194122272175,82.2805804971404,91.0296293214302

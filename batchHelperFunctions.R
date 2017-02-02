@@ -76,17 +76,17 @@ writePDFreport <- function(file, intdat, estdat, allPreds, meta, inputCSV, annua
     
     #page 1
     par(omi = c(2,2,2,2))
-    plotEGRET("multiPlotDataOverview", intdat, estdat, preds, meta)
+    plotEGRET("multiPlotDataOverview", intdat, estdat, preds, meta, preds.type='Conc')
     title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
     #page 2
     par(mfrow=c(2,1))
-    plotEGRET("plotConcTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0))
+    plotEGRET("plotConcTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0), preds.type='Conc')
     title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
-    plotEGRET("plotFluxTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0))
+    plotEGRET("plotFluxTimeDaily", intdat, estdat, preds, meta, mgp = c(4,1,0), preds.type='Conc')
     
     #page 3
     par(mfrow=c(1,1))
-    plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta, moreTitle = modelLong)
+    plotEGRET("fluxBiasMulti", intdat, estdat, preds, meta, moreTitle = modelLong, preds.type='Conc')
     title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
   }
   
