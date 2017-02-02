@@ -1,2 +1,2 @@
-"","station","station_name","latitude","longitude","drainage_area","constituent","constit_units","start","end","n"
-"1","MOGU02900","Mogu",2,2,200,"PT","mg L^-1",2001-02-06,2014-12-09,84
+"site.id","constituent","multi_year_avg.rloadest","SE.rloadest","CI_lower.rloadest","CI_upper.rloadest","multi_year_avg.interpolation","SE.interpolation","CI_lower.interpolation","CI_upper.interpolation","multi_year_avg.composite","SE.composite","CI_lower.composite","CI_upper.composite"
+"MOGU02900","PT",1466.56136524727,21.3121059500189,1424.79040515053,1508.332325344,1317.42931357228,16.1117377121396,1285.85088792813,1349.00773921643,1362.04808772968,29.6235230491676,1303.98704945812,1420.10912600124

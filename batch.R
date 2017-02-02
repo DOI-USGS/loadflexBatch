@@ -139,6 +139,7 @@ for(i in 1:nrow(fileDF)) {
   write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
+  set.seed(9451)
   #TODO: decide on standard column names?  user input timestep above?
   loadRegFormula <- formula(paste(constitColName,"~model(7)"))
   rloadest5param <- loadReg2(loadReg(loadRegFormula, data = siteConstit[1:3], 
