@@ -33,7 +33,7 @@ This script automates running various load models for different sites and consit
 Installation and setup
 ----------------------
 
-First, go to [the Github repository](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
+First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
 
 ``` r
 list.files()
@@ -41,24 +41,32 @@ list.files()
 
     ##  [1] "batch.R"                "batchHelperFunctions.R"
     ##  [3] "blog.html"              "blog.md"               
-    ##  [5] "blog.Rmd"               "loadflexBatch.Rproj"   
-    ##  [7] "NO3.csv"                "output"                
-    ##  [9] "PT.csv"                 "README.html"           
-    ## [11] "README.md"              "README.Rmd"            
-    ## [13] "three_ANA_sites"
+    ##  [5] "blog.pdf"               "blog.Rmd"              
+    ##  [7] "loadflexBatch.Rproj"    "NO3.csv"               
+    ##  [9] "output"                 "PT.csv"                
+    ## [11] "README.html"            "README.md"             
+    ## [13] "README.Rmd"             "three_ANA_sites"
 
-Next, we need to install the packages that the script uses. In your console, run
+Next, we need to install the packages that the script depends. In your console, run
 
 ``` r
-install.packages('dplyr', 'loadflex', 'rloadest', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+install.packages('dplyr', 'rloadest', 'devtools', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
 ```
+
+We will also install the main `loadflex` package, directly from Github to ensure we have the very latest version:
+
+``` r
+devtools::install_github("USGS-R/loadflex")
+```
+
+The most up-to-date installation instructions can be found at <https://github.com/USGS-R/loadflex#installation>.
 
 Now we are ready to look at the user inputs, file structure, and run the script.
 
 Input parameters and directory setup
 ------------------------------------
 
-Open the main script, `batch.R`. There are some basic instructions at the top. Below that are the user inputs, set up for the included example data. The user supplies information about input/output folder names and locations, constituents, load units, and load rate units. The consituent names need to the match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). The discharge folder, containing the discharge measurements used to make the load predictions, works the same way. `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites. Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
+Open the main script, `batch.R`. There are some basic instructions at the top. Below that are the user inputs, set up for the included example data. The user supplies information about input/output folder names and locations, constituents, load units, and load rate units. The constituent names need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). The discharge folder, containing the discharge measurements used to make the load predictions, works the same way. `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites. Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
 
     ##   matching.site   site.id site.name lat lon basin.area constituent   units
     ## 1     RONC02800 RONC02800      Ronc   1   1        100         NO3 mg L^-1
@@ -77,12 +85,12 @@ Here is input consituent data formatting:
 head(read.csv('three_ANA_sites/NO3/MOGU02900.csv'), 5)
 ```
 
-    ##         date         Q  NO3 CODIGO_ESTACAO
-    ## 1 2001-02-06 285.00034 0.27      MOGU02900
-    ## 2 2001-04-03 305.36021 0.28      MOGU02900
-    ## 3 2001-06-20 115.44747 0.47      MOGU02900
-    ## 4 2001-08-07  82.08674 0.58      MOGU02900
-    ## 5 2001-10-02 104.30206 0.58      MOGU02900
+    ##         date         Q  NO3 CODIGO_ESTACAO status
+    ## 1 2001-02-06 285.00034 0.27      MOGU02900      1
+    ## 2 2001-04-03 305.36021 0.28      MOGU02900      1
+    ## 3 2001-06-20 115.44747 0.47      MOGU02900      2
+    ## 4 2001-08-07  82.08674 0.58      MOGU02900      1
+    ## 5 2001-10-02 104.30206 0.58      MOGU02900      2
 
 Once the input parameters are set correctly, you can source the script. It is configured to run with the included example data to start.
 

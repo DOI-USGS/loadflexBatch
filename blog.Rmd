@@ -4,6 +4,8 @@ slug: "loadflex-batch"
 author: "David Watkins"
 date: "YYYY-MM-DD"
 output: USGSmarkdowntemplates::hugo
+  #pdf_document:
+   # latex_engine: xelatex
 ---
 ```{r setup, include=FALSE}
 library(knitr)
@@ -23,20 +25,27 @@ opts_chunk$set(
   This script automates running various load models for different sites and consitutents, using the `loadflex` package along with some features of `rloadest`.  Output is collated across all sites for easy analysis of input data, predicted loads, and model metrics.  This post will go through basic setup and use of the script as it exists now.  In the future it may be hardened into a part of the actual `loadflex` package.    
 
 ## Installation and setup
-  First, go to [the Github repository](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -> New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
+  First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -> New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
 ```{r} 
 list.files()
 ```
   
- Next, we need to install the packages that the script uses.  In your console, run 
+ Next, we need to install the packages that the script depends.  In your console, run 
 ```{r eval = FALSE}
-install.packages('dplyr', 'loadflex', 'rloadest', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+install.packages('dplyr', 'rloadest', 'devtools', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
 ```
+
+We will also install the main `loadflex` package, directly from Github to ensure we have the very latest version:
+
+```{r eval=FALSE}
+devtools::install_github("USGS-R/loadflex")
+```
+The most up-to-date installation instructions can be found at [https://github.com/USGS-R/loadflex#installation](https://github.com/USGS-R/loadflex#installation).
 
 Now we are ready to look at the user inputs, file structure, and run the script.
 
 ## Input parameters and directory setup
-Open the main script, `batch.R`.  There are some basic instructions at the top.  Below that are the user inputs, set up for the included example data.  The user supplies information about input/output folder names and locations, constituents, load units, and load rate units.  The consituent names need to the match the names of the input subfolders that contain the input data (paired water quality and discharge measurements).  The discharge folder, containing the discharge measurements used to make the load predictions, works the same way.  `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites.  Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
+Open the main script, `batch.R`.  There are some basic instructions at the top.  Below that are the user inputs, set up for the included example data.  The user supplies information about input/output folder names and locations, constituents, load units, and load rate units.  The constituent names need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements).  The discharge folder, containing the discharge measurements used to make the load predictions, works the same way.  `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites.  Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
 ```{r echo = FALSE}
 read.csv('three_ANA_sites/siteInfo.csv')
 ```
