@@ -33,7 +33,7 @@ This script automates running various load models for different sites and consit
 Installation and setup
 ----------------------
 
-First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option, select the `loadflexBatch-master` folder, and click "Create Project". You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
+First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USGS-R/loadflexBatch) and download the zip file (using the big green button) to your preferred directory for R projects, and unzip it. Open RStudio, start a new project (File -&gt; New Project), select the "Existing directory" option. select the `loadflexBatch-master` folder, and click "Create Project". Note that on Windows there will be two `loadflexBatch-master` folders — select the lower-level one. You will now be inside the `loadflexBatch-master` folder, and have access to the batch script.
 
 ``` r
 list.files()
@@ -47,10 +47,10 @@ list.files()
     ## [11] "README.html"            "README.md"             
     ## [13] "README.Rmd"             "three_ANA_sites"
 
-Next, we need to install the packages that the script depends. In your console, run
+Next, we need to install the packages that the script depends on. In your console, run
 
 ``` r
-install.packages('dplyr', 'rloadest', 'devtools', repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+install.packages(c('dplyr', 'rloadest', 'devtools'), repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
 ```
 
 We will also install the main `loadflex` package, directly from Github to ensure we have the very latest version:
@@ -66,7 +66,7 @@ Now we are ready to look at the user inputs, file structure, and run the script.
 Input parameters and directory setup
 ------------------------------------
 
-Open the main script, `batch.R`. There are some basic instructions at the top. Below that are the user inputs, set up for the included example data. The user supplies information about input/output folder names and locations, constituents, load units, and load rate units. The constituent names need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). The discharge folder, containing the discharge measurements used to make the load predictions, works the same way. `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites. Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
+Open the main script, `batch.R`, by clicking on it in the 'Files' pane in the lower right of your RStudio window. There are some basic instructions at the top. Below that are the user inputs, set up for the included example data. The user supplies information about input/output folder names and locations, constituents, load units, and load rate units. The constituent names need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). The discharge folder, containing the discharge measurements used to make the load predictions, works the same way. `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites. Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
 
     ##   matching.site   site.id site.name lat lon basin.area constituent   units
     ## 1     RONC02800 RONC02800      Ronc   1   1        100         NO3 mg L^-1
