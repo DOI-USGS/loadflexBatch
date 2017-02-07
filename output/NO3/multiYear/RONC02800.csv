@@ -1,2 +1,2 @@
-"","station","station_name","latitude","longitude","drainage_area","constituent","constit_units","start","end","n"
-"1","RONC02800","Ronc",1,1,100,"NO3","mg L^-1",2010-03-16,2014-12-10,29
+"site.id","constituent","multi_year_avg.rloadest","SE.rloadest","CI_lower.rloadest","CI_upper.rloadest","multi_year_avg.interpolation","SE.interpolation","CI_lower.interpolation","CI_upper.interpolation","multi_year_avg.composite","SE.composite","CI_lower.composite","CI_upper.composite"
+"RONC02800","NO3",144.800957507442,1.24859956987963,142.353747319366,147.248167695519,187.738090615769,1.0442258445642,185.691445568698,189.784735662841,185.117511527659,1.0050654229116,183.147619496646,187.087403558672
