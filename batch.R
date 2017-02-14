@@ -124,9 +124,9 @@ for(i in 1:nrow(fileDF)) {
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
   
-  #format censored data for rloadest. For ANA, Status 0 means null or blank.
-  #Status 1 means a valid value and 2 means that the respective value is a
-  #detection limit."
+  # format censored data for rloadest. For ANA, Status 0 means null or blank. 
+  # Status 1 means a valid value and 2 means that the respective value is a 
+  # detection limit."
   censor.statuses = c('0'='', '1'='', '2'='<')
   siteConstit[[qwconstitColName]] <- 
     smwrQW::as.lcens(
@@ -157,7 +157,7 @@ for(i in 1:nrow(fileDF)) {
   # we'll add that to summarizeInputs.
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
   inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
-  inputMetrics$estdat.num.censored <- 0 # assuming there isn't and shouldn't be censoring in Q. is that right?
+  inputMetrics$estdat.num.censored <- NULL # assuming there isn't and shouldn't be censoring in Q. is that right?
   write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
@@ -211,8 +211,8 @@ for(i in 1:nrow(fileDF)) {
   metrics <- bind_cols(
     data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
     data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
+    data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)),
     data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
-  # data.frame(INT=summarizeModel(interpRect)) # when summarizeModel.loadInterp is ready
   write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   #make predictions
