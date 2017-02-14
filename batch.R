@@ -79,7 +79,7 @@ for(i in 1:nrow(fileDF)) {
   siteQ <- read.csv(fileDF$qFile[i], stringsAsFactors = FALSE)
   siteConstit <- read.csv(fileDF$constitFile[i], stringsAsFactors = FALSE)
   
-  #needs to convert dates 
+  #convert date text to Dates 
   siteConstit$date <- as.Date(siteConstit$date)
   siteQ$date <- as.Date(siteQ$date)
   
@@ -120,8 +120,25 @@ for(i in 1:nrow(fileDF)) {
   #not sure units etc are following the correct format
   #currently depending on consistent column positions to get names
   constitColName <- names(siteConstit)[3]
+  qwconstitColName <- paste0(constitColName, '_qw')
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
+  
+  #format censored data for rloadest. For ANA, Status 0 means null or blank.
+  #Status 1 means a valid value and 2 means that the respective value is a
+  #detection limit."
+  censor.statuses = c('0'='', '1'='', '2'='<')
+  siteConstit[[qwconstitColName]] <- 
+    smwrQW::as.lcens(
+      values=ifelse(siteConstit[['status']] == 0, NA, siteConstit[[constitColName]])/2, 
+      detlim=ifelse(siteConstit[['status']] < 2, 0, siteConstit[[constitColName]]), 
+      censor.codes=censor.statuses[as.character(siteConstit[['status']])])
+  siteConstit[[constitColName]] <- ifelse(
+    siteConstit[['status']] == 0, NA, 
+    ifelse(siteConstit[['status']] == 2, siteConstit[[constitColName]] / 2, # it's still bad, but use half MDL because better than full MDL
+           siteConstit[[constitColName]]))
+  # remove NA values, some of which may have been added by checking status
+  siteConstit <- siteConstit[!is.na(siteConstit[[constitColName]]), ]
   
   # create a formal metadata object. site.id and flow.site.id must both equal
   # constitSite for our input file scheme to work
@@ -133,30 +150,49 @@ for(i in 1:nrow(fileDF)) {
     flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
   )
   
-  # compute and save info on the site, constituent, and input datasets (we'll
-  # recombine in the next loop)
+  # compute and save info on the site, constituent, and input datasets (we'll 
+  # recombine in the next loop). compute num.censored specially here because 
+  # we're using rloadest format for censored data (smwrQW format) and will 
+  # eventually have something simpler in place for loadflex, at which point
+  # we'll add that to summarizeInputs.
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
+  inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
+  inputMetrics$estdat.num.censored <- 0 # assuming there isn't and shouldn't be censoring in Q. is that right?
   write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
   set.seed(9451)
   #TODO: decide on standard column names?  user input timestep above?
+  siteConstitRloadest <- setNames(
+    siteConstit[c(dateColName, qwconstitColName, qColName)],
+    c(dateColName, constitColName, qColName))
   loadRegFormula <- formula(paste(constitColName,"~model(7)"))
-  rloadest5param <- loadReg2(loadReg(loadRegFormula, data = siteConstit[1:3], 
-                                     flow = qColName, dates = dateColName, time.step = "day",
-                                     flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
-                                     conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
-                                     load.units = getInfo(siteMeta, 'load.units')), 
-                             site.id = getInfo(siteMeta, 'site.id'))
+  rloadest5param <- loadReg2(
+    loadReg(loadRegFormula, data = siteConstitRloadest, 
+            flow = qColName, dates = dateColName, time.step = "day",
+            flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
+            conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
+            load.units = getInfo(siteMeta, 'load.units')), 
+    site.id = getInfo(siteMeta, 'site.id'))
   
-  interpRect <- loadInterp(interp.format = "conc", interp.function = rectangularInterpolation,
-                           data = siteConstit, metadata = siteMeta)
-  comp <- loadComp(reg.model = rloadest5param, interp.format = "conc", interp.function = rectangularInterpolation, 
-                   interp.data = siteConstit)
+  interpRect <- loadInterp(
+    interp.format = "conc", interp.function = rectangularInterpolation,
+    data = siteConstit, metadata = siteMeta)
+  
+  rloadest5forComp <- loadReg2( # only difference is the data (non-censored)
+    loadReg(loadRegFormula, data = siteConstit, 
+            flow = qColName, dates = dateColName, time.step = "day",
+            flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
+            conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
+            load.units = getInfo(siteMeta, 'load.units')), 
+    site.id = getInfo(siteMeta, 'site.id'))
+  comp <- loadComp(
+    reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
+    interp.data = siteConstit)
   
   #list of all model objects
   allModels[[constitSite]] <- list(comp = comp, interpRect = interpRect, 
-                                      rloadest5param = rloadest5param)
+                                   rloadest5param = rloadest5param)
   
   #make predictions
   pconc_rload <- predictSolute(rloadest5param, "conc", siteQ, se.pred = TRUE, date = TRUE)
@@ -172,7 +208,11 @@ for(i in 1:nrow(fileDF)) {
   #TODO: model metrics for non-rloadest models
   #combine into DF with row for each model
   #need to extract fitted model so rloadest functions can be used
-  metrics <- summarizeModel(rloadest5param)
+  metrics <- bind_cols(
+    data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
+    data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
+    data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
+  # data.frame(INT=summarizeModel(interpRect)) # when summarizeModel.loadInterp is ready
   write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   #make predictions
@@ -195,13 +235,9 @@ for(i in 1:nrow(fileDF)) {
   
   #plots
   writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
-                 intdat = siteConstit, estdat = siteQ, allPreds = allPreds, 
+                 intdat = siteConstit[1:5], estdat = siteQ, allPreds = allPreds, 
                  meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
     
-  #TODO: verbose option to print output?
-  
-  
-  
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
 }
 
