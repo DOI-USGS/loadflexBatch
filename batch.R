@@ -217,20 +217,20 @@ for(i in 1:nrow(fileDF)) {
   
   #make predictions
   annualSummary <- bind_rows(
-    summarizePreds(pflux_rload, siteMeta, "annual", model.name = "rloadest"),
-    summarizePreds(pflux_interp, siteMeta, "annual", model.name = "interpolation"),
-    summarizePreds(pflux_comp, siteMeta, "annual", model.name = "composite"))
-  annualSummary <- reshape(annualSummary, idvar = "Water_Year", direction = "wide", 
-                           v.names = c("Flux_Rate","SE", "CI_lower", "CI_upper"), timevar = "model")
+    aggregateSolute(pflux_rload, siteMeta, agg.by = "water year", model.name = "rloadest"),
+    aggregateSolute(pflux_interp, siteMeta, agg.by = "water year", model.name = "interpolation"),
+    aggregateSolute(pflux_comp, siteMeta, agg.by = "water year", model.name = "composite"))
+  annualSummary <- reshape(annualSummary, idvar = "water_year", direction = "wide", 
+                           v.names = c("Conc","SE", "CI_lower", "CI_upper"), timevar = "model")
   write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", 
                                                 paste0(constitSite, '.csv')), row.names=FALSE)
   
   multiYearSummary <- bind_rows(
-    summarizePreds(pflux_rload, siteMeta, "total", model.name = "rloadest"),
-    summarizePreds(pflux_interp, siteMeta, "total", model.name = "interpolation"),
-    summarizePreds(pflux_comp, siteMeta, "total", model.name = "composite"))
-  multiYearSummary <- reshape(multiYearSummary, idvar = "site.id", direction = "wide", 
-                              v.names = c("multi_year_avg", "SE", "CI_lower", "CI_upper"), timevar = "model")
+    aggregateSolute(pflux_rload, siteMeta, agg.by = "mean water year", model.name = "rloadest"),
+    aggregateSolute(pflux_interp, siteMeta, agg.by = "mean water year", model.name = "interpolation"),
+    aggregateSolute(pflux_comp, siteMeta, agg.by = "mean water year", model.name = "composite"))
+  multiYearSummary <- reshape(multiYearSummary, idvar = "Site_Id", direction = "wide", 
+                              v.names = c("multi_year_avg", "multiSE", "CI_lower", "CI_upper"), timevar = "model")
   write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #plots
