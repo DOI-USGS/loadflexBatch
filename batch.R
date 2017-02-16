@@ -6,7 +6,7 @@
 
 #------------------User Inputs--------------------#
 
-inputFolder <- "three_ANA_sites" #folder containing all input subfolders
+inputFolder <- "three_ANA_sites/input" #folder containing all input subfolders
 
 #input constituents
 #script will look for folders with this name inside inputFolder, 
@@ -18,7 +18,7 @@ loadRateUnits <- "kg/d"
 dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
 siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
-outputFolder <- "./output"  #output files and subfolders created here
+outputFolder <- "three_ANA_sites/output"  #output files and subfolders created here
 
 #-------------------------Load packages, check files, set up directories-----------------------# 
 
@@ -195,7 +195,7 @@ for(i in 1:nrow(fileDF)) {
   metrics <- bind_cols(
     data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
     data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
-    data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)),
+    data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)[-(1:2)]),
     data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
   write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
