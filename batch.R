@@ -1,22 +1,8 @@
 # This script runs loadflex in "batch mode": It fits several load estimation 
 # models for many constituents at many sites, generates and saves the 
-# predictions, and produces summaries over all models, constituents, and sites.
-
-# 1. Start by setting your working directory to the directory that contains this
-# script. The input directory (three_ANA_sites) should also be within this 
-# working directory.
-
-# 2. Modify the settings within the User Inputs section to match your input data
-# and preferences.
-
-# 3. Source this script, preferably within a clean R session with no additional
-# variables in the R environment.
-
-# 4. This script will add an output directory at the path indicated by 
-# outputFolder below. The current setting creates a folder called 'output' in
-# the same directory as this script.
-
-# 5. Inspect the plots and tables files in the output directory.
+# predictions, and produces summaries over all models, constituents, and sites. 
+# See https://github.com/USGS-R/loadflexBatch/blob/master/blog.md for an
+# overview and instructions on how to use this file.
 
 #------------------User Inputs--------------------#
 
@@ -34,8 +20,6 @@ siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
 
 outputFolder <- "./output"  #output files and subfolders created here
 
-#TODO: implement this
-outputFormat <- "simple" #or "complex"
 #-------------------------Load packages, check files, set up directories-----------------------# 
 
 library(dplyr)
@@ -124,9 +108,9 @@ for(i in 1:nrow(fileDF)) {
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
   
-  #format censored data for rloadest. For ANA, Status 0 means null or blank.
-  #Status 1 means a valid value and 2 means that the respective value is a
-  #detection limit."
+  # format censored data for rloadest. For ANA, Status 0 means null or blank. 
+  # Status 1 means a valid value and 2 means that the respective value is a 
+  # detection limit."
   censor.statuses = c('0'='', '1'='', '2'='<')
   siteConstit[[qwconstitColName]] <- 
     smwrQW::as.lcens(
@@ -157,7 +141,7 @@ for(i in 1:nrow(fileDF)) {
   # we'll add that to summarizeInputs.
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
   inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
-  inputMetrics$estdat.num.censored <- 0 # assuming there isn't and shouldn't be censoring in Q. is that right?
+  inputMetrics$estdat.num.censored <- NULL # assuming there isn't and shouldn't be censoring in Q. is that right?
   write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
@@ -211,8 +195,8 @@ for(i in 1:nrow(fileDF)) {
   metrics <- bind_cols(
     data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
     data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
+    data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)),
     data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
-  # data.frame(INT=summarizeModel(interpRect)) # when summarizeModel.loadInterp is ready
   write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   #make predictions
