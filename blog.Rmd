@@ -2,18 +2,19 @@
 title: "Loadflex Batch Mode"
 slug: "loadflex-batch"
 author: "David Watkins"
-date: "YYYY-MM-DD"
-output: USGSmarkdowntemplates::hugo
-  #pdf_document:
-   # latex_engine: xelatex
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  md_document:
+    variant: markdown_github
+  pdf_document: null
 ---
 ```{r setup, include=FALSE}
 library(knitr)
 
 knit_hooks$set(plot=function(x, options) {
-  sprintf("<img src='/%s%s-%d.%s'/>", 
-          options$fig.path, options$label, options$fig.cur, options$fig.ext)
-
+  sprintf(
+    "<img src='/%s%s-%d.%s'/>", 
+    options$fig.path, options$label, options$fig.cur, options$fig.ext)
 })
 
 opts_chunk$set(
