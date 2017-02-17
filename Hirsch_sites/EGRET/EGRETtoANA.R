@@ -1,7 +1,8 @@
-library(dplyr)
-library(EGRET)
-
 EGRETtoANA <- function(egret.files, ANA.dir) {
+  
+  library(dplyr)
+  library(EGRET)
+  library(loadflex)
   
   # read the RData files and confirm that they're EGRET eLists
   elists <- lapply(egret.files, function(egret.file) {
@@ -18,7 +19,13 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
     lapply(elists, function(elist) {
       elist$INFO %>%
         mutate(
-          conc.units = c("mg/l as N"='mg L^-1')[param.units],
+          conc.units = {
+            if(all(grepl('mg/l', tolower(param.units)))) {
+              'mg L^-1'
+            } else {
+              stop('expected param.units of mg/l, per Table 2 of https://pubs.usgs.gov/tm/04/a10/pdf/tm4A10.pdf')
+            }
+          },
           matching.site = staAbbrev
         ) %>%
         select(
@@ -30,17 +37,18 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
           basin.area = drainSqKm,
           constituent = constitAbbrev, # as in convertToEGRET
           consti.name = paramShortName, # as in convertToEGRET
-          units = conc.units # as in convertToEGRET
+          units = conc.units # as in convertToEGRET. always mg/L
         )
     })
   )
+  # Discharge units: Table 1 of https://pubs.usgs.gov/tm/04/a10/pdf/tm4A10.pdf
   QInfo <- constitInfo %>%
     mutate(
       constituent = 'Q',
-      consti.name = 'Discharge, cubic feet per second', # assuming parameter_cd 00060
-      units = 'cfs'
+      consti.name = 'Discharge, cubic meters per second',
+      units = 'cms'
     )
-  siteInfo <- bind_rows(constitInfo, QInfo)
+  siteInfo <- bind_rows(constitInfo, QInfo) %>% distinct()
   write.csv(siteInfo, file.path(ANA.dir, 'siteInfo.csv'), row.names=FALSE)
   
   # extract the constituent data and write to csvs
@@ -55,7 +63,7 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
       # we know our first two files are entirely uncensored.
       mutate(
         constit = ifelse(Uncen == 1, ConcAve, ConcHigh),
-        status = ifelse(Uncen == 1, 1, 2)
+        status = ifelse(Uncen == 1, 1, 2) # Uncen can be 1 (uncensored) or 0 (censored)
       ) %>% 
       select(date = Date, Q, constit, status) %>%
       setNames(c('date', 'Q', constituent, 'status'))
@@ -72,10 +80,11 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
       select(date = Date, Q)
     write.csv(QData, file.path(Q.dir, paste0(site.id, '.csv')), row.names=FALSE)
   })
+
+  detach(package:loadflex, unload=TRUE) # because loadflex imports EGRET, and we need to detach EGRET
+  detach(package:EGRET, unload=TRUE) # because getInfo masks loadflex::getInfo
+  
+  invisible()
 }
 
-EGRETtoANA(c('Hirsch_sites/EGRET/Musk.NO23.RData', 'Hirsch_sites/EGRET/Rac.NO23.RData'), ANA.dir='Hirsch_sites/input')
-
-detach(package:loadflex, unload=TRUE) # because loadflex imports EGRET, and we need to detach EGRET
-detach(package:EGRET, unload=TRUE) # because getInfo masks loadflex::getInfo
-
+EGRETtoANA(egret.files=c('Hirsch_sites/EGRET/Musk.NO23.RData', 'Hirsch_sites/EGRET/Rac.NO23.RData'), ANA.dir='Hirsch_sites/input')
