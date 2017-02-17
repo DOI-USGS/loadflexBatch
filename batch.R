@@ -199,21 +199,36 @@ for(i in 1:nrow(fileDF)) {
   
   #make predictions
   annualSummary <- bind_rows(
-    aggregateSolute(pflux_rload, siteMeta, agg.by = "water year", model.name = "rloadest"),
-    aggregateSolute(pflux_interp, siteMeta, agg.by = "water year", model.name = "interpolation"),
-    aggregateSolute(pflux_comp, siteMeta, agg.by = "water year", model.name = "composite"))
-  annualSummary <- reshape(annualSummary, idvar = "water_year", direction = "wide", 
-                           v.names = c("Conc","SE", "CI_lower", "CI_upper"), timevar = "model")
-  write.csv(x = annualSummary, file = file.path(inputs$outputFolder, constitName, "annual", 
-                                                paste0(constitSite, '.csv')), row.names=FALSE)
+    mutate(aggregateSolute(pflux_rload, siteMeta, agg.by = "water year"), model = "REG"),
+    mutate(aggregateSolute(pflux_interp, siteMeta, agg.by = "water year"), model = "INT"),
+    mutate(aggregateSolute(pflux_comp, siteMeta, agg.by = "water year"), model = "CMP")) %>%
+    mutate(site.id=siteMeta@site.id, constituent=siteMeta@constituent) %>%
+    select(site.id, constituent, model, everything())
+  annualSummary <- reshape(
+    annualSummary, idvar = "water_year", direction = "wide", 
+    v.names = c("Conc","SE", "CI_lower", "CI_upper"), timevar = "model")
+  annualSummary <- setNames(
+    annualSummary, 
+    sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(annualSummary)))
+  write.csv(
+    x = annualSummary, 
+    file = file.path(inputs$outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
   
   multiYearSummary <- bind_rows(
-    aggregateSolute(pflux_rload, siteMeta, agg.by = "mean water year", model.name = "rloadest"),
-    aggregateSolute(pflux_interp, siteMeta, agg.by = "mean water year", model.name = "interpolation"),
-    aggregateSolute(pflux_comp, siteMeta, agg.by = "mean water year", model.name = "composite"))
-  multiYearSummary <- reshape(multiYearSummary, idvar = "Site_Id", direction = "wide", 
-                              v.names = c("multi_year_avg", "multiSE", "CI_lower", "CI_upper"), timevar = "model")
-  write.csv(x = multiYearSummary, file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
+    mutate(aggregateSolute(pflux_rload, siteMeta, agg.by = "mean water year"), model = "REG"),
+    mutate(aggregateSolute(pflux_interp, siteMeta, agg.by = "mean water year"), model = "INT"),
+    mutate(aggregateSolute(pflux_comp, siteMeta, agg.by = "mean water year"), model = "CMP")) %>%
+    mutate(site.id=siteMeta@site.id, constituent=siteMeta@constituent) %>%
+    select(site.id, constituent, model, everything())
+  multiYearSummary <- reshape(
+    multiYearSummary, direction = "wide", idvar=c("site.id", "constituent"),
+    v.names = c("Multi_Year_Avg", "multiSE", "CI_lower", "CI_upper", "years.record", "years.complete"), timevar = "model")
+  multiYearSummary <- setNames(
+    multiYearSummary, 
+    sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(multiYearSummary)))
+  write.csv(
+    x = multiYearSummary, 
+    file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #plots
   writePDFreport(file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
