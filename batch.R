@@ -6,8 +6,8 @@
 
 #------------------User Inputs--------------------#
 
-inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
-# inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
+# inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
 
 
 #-------------------------Load packages, check files, set up directories-----------------------# 
@@ -98,10 +98,18 @@ for(i in 1:nrow(fileDF)) {
   qColName <- names(siteConstit)[2]
   dateColName <- names(siteConstit)[1]
   
+  # remove duplicate observations
+  constitDupes <- table(siteConstit$date) %>% .[.>1] %>% names()
+  nonFirstDupes <- unlist(lapply(constitDupes, function(cD) {
+    dupes <- which(as.character(siteConstit$date) == cD)
+    dupes[-1]
+  }))
+  siteConstit <- siteConstit[-nonFirstDupes,]
+  
   # format censored data for rloadest. For ANA, Status 0 means null or blank. 
   # Status 1 means a valid value and 2 means that the respective value is a 
   # detection limit."
-  censor.statuses = c('0'='', '1'='', '2'='<')
+  censor.statuses <- c('0'='', '1'='', '2'='<')
   siteConstit[[qwconstitColName]] <- 
     smwrQW::as.lcens(
       values=ifelse(siteConstit[['status']] == 0, NA, siteConstit[[constitColName]])/2, 
@@ -117,11 +125,24 @@ for(i in 1:nrow(fileDF)) {
   # create a formal metadata object. site.id and flow.site.id must both equal
   # constitSite for our input file scheme to work
   siteMeta <- metadata(
-    constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
-    flow = qColName, flow.units = qSiteInfo$units, 
-    load.units = inputs$loadUnits, load.rate.units = inputs$loadRateUnits, dates = dateColName,
-    site.name = constitSiteInfo$site.name, site.id = constitSiteInfo$site.id, lat = constitSiteInfo$lat, lon = constitSiteInfo$lon, basin.area = constitSiteInfo$basin.area,
-    flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
+    constituent = constitColName, 
+    consti.name = constitColName, 
+    conc.units = constitSiteInfo$units, 
+    flow = qColName, 
+    flow.units = qSiteInfo$units, 
+    load.units = inputs$loadUnits, 
+    load.rate.units = inputs$loadRateUnits, 
+    dates = dateColName,
+    site.name = constitSiteInfo$site.name, 
+    site.id = constitSiteInfo$site.id, 
+    lat = constitSiteInfo$lat, 
+    lon = constitSiteInfo$lon, 
+    basin.area = constitSiteInfo$basin.area,
+    flow.site.name = qSiteInfo$site.name, 
+    flow.site.id = qSiteInfo$site.id, 
+    flow.lat = qSiteInfo$lat, 
+    flow.lon = qSiteInfo$lon, 
+    flow.basin.area = qSiteInfo$basin.area
   )
   
   # compute and save info on the site, constituent, and input datasets (we'll 
