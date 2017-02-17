@@ -6,19 +6,9 @@
 
 #------------------User Inputs--------------------#
 
-inputFolder <- "three_ANA_sites/input" #folder containing all input subfolders
+inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+# inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
 
-#input constituents
-#script will look for folders with this name inside inputFolder, 
-#and use in site metadata
-constituents <- c("NO3", "PT")
-loadUnits <- "kg"
-loadRateUnits <- "kg/d"
-
-dischargeFolder <- "Q" #subfolder of inputFolder containing discharge measurements for predictions
-siteInfo <- "siteInfo.csv" #also inside inputFolder, data frame of site info
-
-outputFolder <- "three_ANA_sites/output"  #output files and subfolders created here
 
 #-------------------------Load packages, check files, set up directories-----------------------# 
 
@@ -33,12 +23,12 @@ if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
   stop("rloadest version 0.4.4 or greater is required")
 }
 
-fileDF <- makeFileDF(inputFolder, constits = constituents, discharge.folder = dischargeFolder)
-allSiteInfo <- read.csv(file.path(inputFolder, siteInfo), stringsAsFactors = FALSE)
+fileDF <- makeFileDF(inputs$inputFolder, constits = inputs$constituents, discharge.folder = inputs$dischargeFolder)
+allSiteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
 
 #setup output directories
-nConstits <- length(constituents)
-outConstit <- file.path(rep(outputFolder, nConstits), constituents)
+nConstits <- length(inputs$constituents)
+outConstit <- file.path(rep(inputs$outputFolder, nConstits), inputs$constituents)
 sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
 outTemporal <- file.path(rep(outConstit,4), c(rep("inputs", nConstits), 
                                               rep("annual", nConstits), 
@@ -78,14 +68,14 @@ for(i in 1:nrow(fileDF)) {
   #this should be the case the way makeFileDF looks at folders
   if(is.null(lastConstit)) {
     pdf(height = 11, width = 8.5, 
-        file = file.path(outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
+        file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
     lastConstit <- constitName
   }
   if(constitName != lastConstit) {
     lastConstit <- constitName
     dev.off()
     pdf(height = 11, width = 8.5, 
-        file = file.path(outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
+        file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
   }
   
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
@@ -129,7 +119,7 @@ for(i in 1:nrow(fileDF)) {
   siteMeta <- metadata(
     constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
     flow = qColName, flow.units = qSiteInfo$units, 
-    load.units = loadUnits, load.rate.units = loadRateUnits, dates = dateColName,
+    load.units = inputs$loadUnits, load.rate.units = inputs$loadRateUnits, dates = dateColName,
     site.name = constitSiteInfo$site.name, site.id = constitSiteInfo$site.id, lat = constitSiteInfo$lat, lon = constitSiteInfo$lon, basin.area = constitSiteInfo$basin.area,
     flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
   )
@@ -142,7 +132,7 @@ for(i in 1:nrow(fileDF)) {
   inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
   inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
   inputMetrics$estdat.num.censored <- NULL # assuming there isn't and shouldn't be censoring in Q. is that right?
-  write.csv(inputMetrics, file.path(outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
+  write.csv(inputMetrics, file.path(inputs$outputFolder, constitName, "inputs", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #fit models
   set.seed(9451)
@@ -197,7 +187,7 @@ for(i in 1:nrow(fileDF)) {
     data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
     data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)[-(1:2)]),
     data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
-  write.csv(x = metrics, file = file.path(outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
+  write.csv(x = metrics, file = file.path(inputs$outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   #make predictions
   annualSummary <- bind_rows(
@@ -206,7 +196,7 @@ for(i in 1:nrow(fileDF)) {
     aggregateSolute(pflux_comp, siteMeta, agg.by = "water year", model.name = "composite"))
   annualSummary <- reshape(annualSummary, idvar = "water_year", direction = "wide", 
                            v.names = c("Conc","SE", "CI_lower", "CI_upper"), timevar = "model")
-  write.csv(x = annualSummary, file = file.path(outputFolder, constitName, "annual", 
+  write.csv(x = annualSummary, file = file.path(inputs$outputFolder, constitName, "annual", 
                                                 paste0(constitSite, '.csv')), row.names=FALSE)
   
   multiYearSummary <- bind_rows(
@@ -215,10 +205,10 @@ for(i in 1:nrow(fileDF)) {
     aggregateSolute(pflux_comp, siteMeta, agg.by = "mean water year", model.name = "composite"))
   multiYearSummary <- reshape(multiYearSummary, idvar = "Site_Id", direction = "wide", 
                               v.names = c("multi_year_avg", "multiSE", "CI_lower", "CI_upper"), timevar = "model")
-  write.csv(x = multiYearSummary, file = file.path(outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
+  write.csv(x = multiYearSummary, file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
   #plots
-  writePDFreport(file = file.path(outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
+  writePDFreport(file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
                  intdat = siteConstit[1:5], estdat = siteQ, allPreds = allPreds, 
                  meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
     
@@ -228,8 +218,8 @@ for(i in 1:nrow(fileDF)) {
 #close the final pdf
 dev.off()
 
-allInputs <- summarizeCsvs('inputs', fileDF, outputFolder) 
-allAnnual <- summarizeCsvs('annual', fileDF, outputFolder) 
-allMultiYear <- summarizeCsvs('multiYear', fileDF, outputFolder) 
-allModelMetrics <- summarizeCsvs('modelMetrics', fileDF, outputFolder)
+allInputs <- summarizeCsvs('inputs', fileDF, inputs$outputFolder) 
+allAnnual <- summarizeCsvs('annual', fileDF, inputs$outputFolder) 
+allMultiYear <- summarizeCsvs('multiYear', fileDF, inputs$outputFolder) 
+allModelMetrics <- summarizeCsvs('modelMetrics', fileDF, inputs$outputFolder)
 
