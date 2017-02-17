@@ -125,24 +125,11 @@ for(i in 1:nrow(fileDF)) {
   # create a formal metadata object. site.id and flow.site.id must both equal
   # constitSite for our input file scheme to work
   siteMeta <- metadata(
-    constituent = constitColName, 
-    consti.name = constitColName, 
-    conc.units = constitSiteInfo$units, 
-    flow = qColName, 
-    flow.units = qSiteInfo$units, 
-    load.units = inputs$loadUnits, 
-    load.rate.units = inputs$loadRateUnits, 
-    dates = dateColName,
-    site.name = constitSiteInfo$site.name, 
-    site.id = constitSiteInfo$site.id, 
-    lat = constitSiteInfo$lat, 
-    lon = constitSiteInfo$lon, 
-    basin.area = constitSiteInfo$basin.area,
-    flow.site.name = qSiteInfo$site.name, 
-    flow.site.id = qSiteInfo$site.id, 
-    flow.lat = qSiteInfo$lat, 
-    flow.lon = qSiteInfo$lon, 
-    flow.basin.area = qSiteInfo$basin.area
+    constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units, 
+    flow = qColName, flow.units = qSiteInfo$units, 
+    load.units = inputs$loadUnits, load.rate.units = inputs$loadRateUnits, dates = dateColName,
+    site.name = constitSiteInfo$site.name, site.id = constitSiteInfo$site.id, lat = constitSiteInfo$lat, lon = constitSiteInfo$lon, basin.area = constitSiteInfo$basin.area,
+    flow.site.name = qSiteInfo$site.name, flow.site.id = qSiteInfo$site.id, flow.lat = qSiteInfo$lat, flow.lon = qSiteInfo$lon, flow.basin.area = qSiteInfo$basin.area
   )
   
   # compute and save info on the site, constituent, and input datasets (we'll 
