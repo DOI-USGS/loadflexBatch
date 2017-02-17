@@ -104,7 +104,7 @@ for(i in 1:nrow(fileDF)) {
     dupes <- which(as.character(siteConstit$date) == cD)
     dupes[-1]
   }))
-  siteConstit <- siteConstit[-nonFirstDupes,]
+  if(length(nonFirstDupes) > 0) siteConstit <- siteConstit[-nonFirstDupes,]
   
   # format censored data for rloadest. For ANA, Status 0 means null or blank. 
   # Status 1 means a valid value and 2 means that the respective value is a 
@@ -217,7 +217,7 @@ for(i in 1:nrow(fileDF)) {
   
   #plots
   writePDFreport(file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
-                 intdat = siteConstit[1:5], estdat = siteQ, allPreds = allPreds, 
+                 intdat = siteConstit[1:4], estdat = siteQ, allPreds = allPreds, 
                  meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
     
   message(paste('Finished processing constituent file', fileDF$constitFile[i], '\n'))
