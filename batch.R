@@ -78,14 +78,14 @@ for(i in 1:nrow(fileDF)) {
   #this should be the case the way makeFileDF looks at folders
   if(is.null(lastConstit)) {
     pdf(height = 11, width = 8.5, 
-        file = file.path(outputFolder, constitName, "plots.pdf")) 
+        file = file.path(outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
     lastConstit <- constitName
   }
   if(constitName != lastConstit) {
     lastConstit <- constitName
     dev.off()
     pdf(height = 11, width = 8.5, 
-        file = file.path(outputFolder, constitName, "plots.pdf"))
+        file = file.path(outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
   }
   
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
