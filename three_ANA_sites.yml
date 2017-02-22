@@ -1,0 +1,16 @@
+# This YAML file contains high-level user options for running batch.R on a
+# specific dataset. YAML files are made of key: value pairs like the ones below.
+# Edit the values (the text to the right of each colon) to describe your data.
+
+# input file information
+inputFolder: "three_ANA_sites/input" # folder containing all input files and subfolders
+constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data
+dischargeFolder: "Q" # name of the folder inside inputFolder containing daily discharge data
+siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing site and constituent metadata
+
+# desired units for output
+loadUnits: "kg"
+loadRateUnits: "kg/d"
+
+# output folder where results files and subfolders will be written
+outputFolder: "three_ANA_sites/output"

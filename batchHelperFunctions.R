@@ -13,8 +13,8 @@ makeFileDF <- function(input.folder, constits, discharge.folder) {
   #get all constituent files
   constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
   constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, dischargeFolder, constitNameOnly)
-  #TODO: warning if not matching dischargeFolder, will be skipped
+  qFiles <- file.path(input.folder, discharge.folder, constitNameOnly)
+  #TODO: warning if not matching discharge.folder, will be skipped
   #should deal with if a discharge file doesn't exist?
   
   fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)

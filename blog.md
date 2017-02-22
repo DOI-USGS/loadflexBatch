@@ -1,34 +1,7 @@
----
-author: David Watkins
-date: YYYY-MM-DD
-slug: loadflex-batch
-draft: True
-title: Loadflex Batch Mode
-type: post
-categories: Data Science
- 
- 
- 
- 
- 
- 
- 
+Loadflex batch script
+---------------------
 
-tags: 
-  - R
- 
- 
-description: 
-keywords:
-  - R
- 
- 
- 
- 
----
-### Loadflex Batch Script
-
-This script automates running various load models for different sites and consitutents, using the `loadflex` package along with some features of `rloadest`. Output is collated across all sites for easy analysis of input data, predicted loads, and model metrics. This post will go through basic setup and use of the script as it exists now. In the future it may be hardened into a part of the actual `loadflex` package.
+The script at <https://github.com/USGS-R/loadflexBatch/blob/master/batch.R> automates running multiple load models for multiple sites and consitutents, using the `loadflex` package along with some features of `rloadest`. Output is collated across all sites for easy analysis of input data, predicted loads, and model metrics. This post will go through basic setup and use of the script as it exists now. In the future it may be hardened into a part of the actual `loadflex` package.
 
 Installation and setup
 ----------------------
@@ -40,33 +13,61 @@ list.files()
 ```
 
     ##  [1] "batch.R"                "batchHelperFunctions.R"
-    ##  [3] "blog.html"              "blog.md"               
-    ##  [5] "blog.pdf"               "blog.Rmd"              
-    ##  [7] "loadflexBatch.Rproj"    "NO3.csv"               
-    ##  [9] "output"                 "PT.csv"                
-    ## [11] "README.html"            "README.md"             
-    ## [13] "README.Rmd"             "three_ANA_sites"
+    ##  [3] "blog.md"                "blog.pdf"              
+    ##  [5] "blog.Rmd"               "Hirsch_sites"          
+    ##  [7] "Hirsch_sites.yml"       "loadflexBatch.Rproj"   
+    ##  [9] "README.md"              "three_ANA_sites"       
+    ## [11] "three_ANA_sites.yml"
 
 Next, we need to install the packages that the script depends on. In your console, run
 
 ``` r
-install.packages(c('dplyr', 'rloadest', 'devtools'), repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+install.packages(
+  c('dplyr', 'rloadest', 'devtools', 'yaml'), 
+  repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
 ```
 
-We will also install the main `loadflex` package, directly from Github to ensure we have the very latest version:
+We will also install the main `loadflex` package directly from Github to ensure we have the very latest version:
 
 ``` r
 devtools::install_github("USGS-R/loadflex")
 ```
 
-The most up-to-date installation instructions can be found at <https://github.com/USGS-R/loadflex#installation>.
+The most up-to-date installation instructions can always be found at <https://github.com/USGS-R/loadflex#installation>.
 
-Now we are ready to look at the user inputs, file structure, and run the script.
+Now we are ready to look at the user inputs, run the script, and inspect the output.
 
-Input parameters and directory setup
-------------------------------------
+Input parameters and files
+--------------------------
 
-Open the main script, `batch.R`, by clicking on it in the 'Files' pane in the lower right of your RStudio window. There are some basic instructions at the top. Below that are the user inputs, set up for the included example data. The user supplies information about input/output folder names and locations, constituents, load units, and load rate units. The constituent names need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). The discharge folder, containing the discharge measurements used to make the load predictions, works the same way. `siteInfo` is a .csv file (inside `inputFolder`) that contains metadata for water quality and discharge sites. Look at the example file (`three_ANA_sites/siteInfo.csv`) for reference:
+Open the main script, `batch.R`, by clicking on it in the 'Files' pane in the lower right of your RStudio window. There is a basic description of the file at the top. Below that is a command to read in the user inputs file for one of the included example datasets. It looks like this:
+
+``` r
+inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+```
+
+The default file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch_sites.yml`), edit the file name in the above line of the `batch.R` script. The user inputs file is in the YAML language (<http://www.yaml.org/>). In YAML, each line contains a `key: value` pair, except blank lines and those lines beginning with `#`, which are comments. In your user input YAML file you should supply information about input/output folder names and locations, constituents, load units, and load rate units. `three_ANA_sites.yml` looks like this:
+
+    # This YAML file contains high-level user options for running batch.R on a
+    # specific dataset. YAML files are made of key: value pairs like the ones below.
+    # Edit the values (the text to the right of each colon) to describe your data.
+
+    # input file information
+    inputFolder: "three_ANA_sites/input" # folder containing all input files and subfolders
+    constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data
+    dischargeFolder: "Q" # name of the folder inside inputFolder containing daily discharge data
+    siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing site and constituent metadata
+
+    # desired units for output
+    loadUnits: "kg"
+    loadRateUnits: "kg/d"
+
+    # output folder where results files and subfolders will be written
+    outputFolder: "three_ANA_sites/output"
+
+The `constituents` named in the user inputs file need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). Similarly, `dischargeFolder` should name a subfolder containing the discharge measurements used to make the load predictions.
+
+The file named by `siteInfo` should be a comma-separated (.csv) file inside `inputFolder`. This file contains a table of metadata for individual water quality and discharge sites. Look at the example file (`three_ANA_sites/input/siteInfo.csv`) for reference on the required column names and format:
 
     ##   matching.site   site.id site.name lat lon basin.area constituent   units
     ## 1     RONC02800 RONC02800      Ronc   1   1        100         NO3 mg L^-1
@@ -79,10 +80,34 @@ Open the main script, `batch.R`, by clicking on it in the 'Files' pane in the lo
     ## 8     ORIZ02900 ORIZ02900      Oriz   3   3        300          PT mg L^-1
     ## 9     ORIZ02900 ORIZ02900      Oriz   3   3        300           Q     cms
 
-Here is input consituent data formatting:
+For each row of the `siteInfo` file, the value in the `constituent` column should match both (1) a folder name given as a `constituent` or `dischargeFolder` in the user inputs file, and (2) an actual folder within the `inputFolder`. And then within each of those folders, there should be a separate data file (.csv format) for each site, with a file name equal to the names given in the `site.id` column of the `siteInfo` file.
+
+For this example, the input folder structure is therefore:
+
+    - three_ANA_sites
+      - input
+        - siteInfo.csv
+        - NO3
+          - RONC02800.csv
+          - MOGU02900.csv
+          - ORIZ02800.csv
+        - PT
+          - RONC02800.csv
+          - MOGU02900.csv
+          - ORIZ02800.csv
+        - Q
+          - RONC02800.csv
+          - MOGU02900.csv
+          - ORIZ02800.csv
+
+The batch script loops over the constituents listed in the user inputs file, finds the corresponding rows in `siteInfo.csv`, and identifies the one water quality file and one discharge file for each site-constituent combination. Both files bear the name of a `site.id` and have the `.csv` suffix, and they appear in a constituent folder (e.g., `NO3`) and the discharge folder (`Q`), respectively.
+
+Water quality and discharge are usually measured at the exact same location, but sometimes water quality is sampled somewhat downstream or upstream of the flow gage. The script handles this possible discrepancy by expecting two columns for site identifiers in the `siteInfo` file. The column called `site.id` describes precise site locations. If water quality is measured downstream or upstream of the flow gage, the concentration and discharge rows in the `siteInfo` file should have different `site.id` values. The column called `matching.site` is used to match up pairs of water quality and discharge sites that you want to combine into a load model. The `matching.site` should always be the same for the concentration row and discharge row to be combined.
+
+Here is an example of how the input consituent data should be formatted, with columns for date of the observation (`date`), discharge (`Q`), the concentration of the constituent (in this case `NO3`), additional columns that are ignored by this script (e.g., `CODIGO_ESTACAO`), and the censoring and data quality code (`status`), which follows the Brazillian ANA's convention of 0=bad value, 1=normal value, 2=value known to be less than or equal to the number given in the constituent (`NO3`) column.
 
 ``` r
-head(read.csv('three_ANA_sites/NO3/MOGU02900.csv'), 5)
+head(read.csv('three_ANA_sites/input/NO3/MOGU02900.csv'), 5)
 ```
 
     ##         date         Q  NO3 CODIGO_ESTACAO status
@@ -92,7 +117,23 @@ head(read.csv('three_ANA_sites/NO3/MOGU02900.csv'), 5)
     ## 4 2001-08-07  82.08674 0.58      MOGU02900      1
     ## 5 2001-10-02 104.30206 0.58      MOGU02900      2
 
-Once the input parameters are set correctly, you can source the script. It is configured to run with the included example data to start.
+And here is how the input discharge data should be formatted, with columns for date of the observation (`date`) and mean daily discharge (`Q`), plus optional additional columns that will be ignored by `batch.R`. Whereas the constituent data file only has rows for those dates on which concentration was measured, the discharge data file has rows for every date on which flux is to be estimated.
+
+``` r
+head(read.csv('three_ANA_sites/input/Q/MOGU02900.csv'), 5)
+```
+
+    ##         date        Q CODIGO_ESTACAO
+    ## 1 2001-01-01 503.0083      MOGU02900
+    ## 2 2001-01-02 478.1621      MOGU02900
+    ## 3 2001-01-03 441.5538      MOGU02900
+    ## 4 2001-01-04 392.3504      MOGU02900
+    ## 5 2001-01-05 344.9383      MOGU02900
+
+Running the script
+------------------
+
+Once the input parameters and files are set correctly, you can source the script. Recall that it is configured to run with the `three_ANA_sites` example by default, but you can edit the .yml filename to pick a different sample.
 
 ``` r
 source('batch.R')
@@ -103,27 +144,45 @@ Behind the scenes
 
 The script reads, processes, and writes output for each site/consituent combination individually. Currently, it runs three models for each iteration — the `rloadest` 5-parameter regression model, an interpolation model from `loadflex`, and a composite interpolation-regression model also from `loadflex`. Additional models can be added with some modifications to the script.
 
-All the site metadata is stored in `loadflex::metadata` objects, where it is referenced throughout the script.
+If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio. The resulting estimates describe fluxes at the water quality monitoring site.
 
-If the drainage basin areas for paired water quality and discharge sites are different (in the site metadata file, e.g `siteInfo.csv`), discharge is scaled by the appropriate ratio. The resulting estimates descibe fluxes at the water quality monitoring site.
+If a constituent dataset includes censored data (i.e., `status` flags of 2), those data are passed to the `loadReg2` model in the censored data format required by `rloadest`. The composite and interpolation models are then excluded, because these models are not equipped to handle censored data.
 
-Output
-------
+All the site metadata is stored in a `loadflex::metadata` R object, which is referenced throughout the script.
 
-Like the input files, the output files are written to a separate folder for each constituent. Output contains 5 files, which cover all the sites for that consituent:
+The script uses several built-in `loadflex` functions to create the outputs in R, which the script then writes to files. Those functions include `summarizeInputs`, `summarizeModel`, `predictSolute`, and `aggregateSolute`. Descriptions of these functions can be found by typing `?` followed by the function name at the R prompt.
 
--   four .csvs:
-    -   input data summary
-    -   annual predicted loads for each model
-    -   multiyear predicted loads for each model
-    -   model metrics
--   PDF of plots of input data, predicted loads, and model diagnostics
+Output files
+------------
 
-Additionally, there are four folders corresponding to the four csvs that contain individual .csv files for each site.
+Like the input files, the output files are written to a separate folder for each constituent. Most important are the five summary files, each of which covers all the sites for that consituent. These are prefixed with the constituent name, so for NO3, these are:
+
+    - output
+      - NO3
+        - NO3_inputs.csv       # input data summary
+        - NO3_annual.csv       # annual predicted loads from each model
+        - NO3_multiYear.csv    # multiyear predicted loads from each model
+        - NO3_modelMetrics.csv # diagnostics and descriptive metrics for each model
+        - NO3_plots.pdf        # plots of input data, predicted loads, and model diagnostics
+
+Additionally, there are four folders containing individual .csv files for each site. The four .csv files listed above combine the contents of those folders.
 
 Conventions to remember
 -----------------------
 
 -   Column names and metadata slots for site information are assumed to refer to the water quality site, unless the name specifies they refer to discharge.
 
--   Constituent and discharge symbols need to be consistent throughout, including directory names and in the site metadata csv.
+-   IDs for constituents, discharge, and sites need to be consistent across the user inputs file, the `siteInfo` file, and the folder and file names in the `siteInputs` folder.
+
+What's next?
+------------
+
+Create your own input files following the conventions above. Edit line 9 of `batch.R` to point to your own user inputs YAML file, e.g.,
+
+``` r
+inputs <- yaml::yaml.load_file('my_own_sites.yml')
+```
+
+Then run `source('batch.R')` to produce outputs for your sites.
+
+Inspect the output files to learn about the size and quality of the input data, how well each model performed, and how the model predictions varied across models and sites. We'll create a separate document with suggestions for how to use these outputs to assess the quality of the data, models, and predictions.

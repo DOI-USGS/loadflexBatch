@@ -1,0 +1,5 @@
+"matching.site","site.id","site.name","lat","lon","basin.area","constituent","consti.name","units"
+"Musk","Musk","Muskingum River at McConnelsville OH",39.6450711,-81.8498578,19222.8916782,"NO23","Nitrate plus Nitrite, filtered, as N in mg/L","mg L^-1"
+"Rac","Rac","Raccoon River at Des Moines, IA",41.58165598,-93.6429964,9388.7068625,"NO23","Nitrate plus Nitrite, filtered, as N in mg/L","mg L^-1"
+"Musk","Musk","Muskingum River at McConnelsville OH",39.6450711,-81.8498578,19222.8916782,"Q","Discharge, cubic meters per second","cms"
+"Rac","Rac","Raccoon River at Des Moines, IA",41.58165598,-93.6429964,9388.7068625,"Q","Discharge, cubic meters per second","cms"

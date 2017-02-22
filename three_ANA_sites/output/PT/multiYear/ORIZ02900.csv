@@ -1,0 +1,2 @@
+"Site_Id","constituent","years.record","years.complete","multi_year_avg.rloadest","multiSE.rloadest","CI_lower.rloadest","CI_upper.rloadest","multi_year_avg.interpolation","multiSE.interpolation","CI_lower.interpolation","CI_upper.interpolation","multi_year_avg.composite","multiSE.composite","CI_lower.composite","CI_upper.composite"
+"ORIZ02900","PT",15,15,44.692342035276,0.622214365247228,43.472824288728,45.911859781824,91.704910340689,1.71416307478492,88.3452124504822,95.0646082308959,84.6751317848218,2.43166065851341,79.9091644715126,89.4410990981311
