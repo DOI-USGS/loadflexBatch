@@ -1,3 +1,11 @@
+#' Convert EGRET files into the format currently being used by the Brazillian 
+#' ANA for load analyses.
+#' 
+#' @param egret.files a character vector filenames of EGRET eList objects saved 
+#'   in .RData format
+#' @param ANA.dir the directory filepath where the converted files should be 
+#'   written
+#' @return TRUE if the conversion was successful. Throws an error otherwise.
 EGRETtoANA <- function(egret.files, ANA.dir) {
   
   library(dplyr)
@@ -8,8 +16,9 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
   elists <- lapply(egret.files, function(egret.file) {
     elist.name <- load(egret.file)
     egret.elist <- get(elist.name)
-    if(!all.equal(names(egret.elist), c('INFO','Daily','Sample','surfaces')) || class(egret.elist) != 'egret') {
-      stop("are you sure this file contains an eList?")
+    if(class(egret.elist) != 'egret' ||
+       !all.equal(names(egret.elist), c('INFO','Daily','Sample','surfaces'))) {
+      stop(egret.file, " doesn't contain an eList with elements INFO, Daily, Sample, and surface")
     }
     return(egret.elist)
   })
@@ -38,7 +47,8 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
           constituent = constitAbbrev, # as in convertToEGRET
           consti.name = paramShortName, # as in convertToEGRET
           units = conc.units # as in convertToEGRET. always mg/L
-        )
+        ) %>% 
+        return()
     })
   )
   # Discharge units: Table 1 of https://pubs.usgs.gov/tm/04/a10/pdf/tm4A10.pdf
@@ -84,7 +94,7 @@ EGRETtoANA <- function(egret.files, ANA.dir) {
   detach(package:loadflex, unload=TRUE) # because loadflex imports EGRET, and we need to detach EGRET
   detach(package:EGRET, unload=TRUE) # because getInfo masks loadflex::getInfo
   
-  invisible()
+  return(TRUE) # if we get this far, the conversion succeeded (otherwise we stop()ed above)
 }
 
 EGRETtoANA(egret.files=c('Hirsch_sites/EGRET/Musk.NO23.RData', 'Hirsch_sites/EGRET/Rac.NO23.RData'), ANA.dir='Hirsch_sites/input')

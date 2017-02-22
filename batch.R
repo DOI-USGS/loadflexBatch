@@ -6,7 +6,6 @@
 
 #------------------User Inputs--------------------#
 
-# inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
 inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
 
 
@@ -102,7 +101,7 @@ for(i in 1:nrow(fileDF)) {
   constitDupes <- table(siteConstit$date) %>% .[.>1] %>% names()
   nonFirstDupes <- unlist(lapply(constitDupes, function(cD) {
     dupes <- which(as.character(siteConstit$date) == cD)
-    dupes[-1]
+    return(dupes[-1])
   }))
   if(length(nonFirstDupes) > 0) siteConstit <- siteConstit[-nonFirstDupes,]
   

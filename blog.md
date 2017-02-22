@@ -46,7 +46,7 @@ Open the main script, `batch.R`, by clicking on it in the 'Files' pane in the lo
 inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
 ```
 
-The default file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch_sites.yml`), edit the file name in the above line of the `batch.R` script. The user inputs file is in the YAML language. In YAML, each line contains a `key: value` pair, except blank lines and those lines beginning with `#`, which are comments. In your user input YAML file you should supply information about input/output folder names and locations, constituents, load units, and load rate units. `three_ANA_sites.yml` looks like this:
+The default file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch_sites.yml`), edit the file name in the above line of the `batch.R` script. The user inputs file is in the YAML language (<http://www.yaml.org/>). In YAML, each line contains a `key: value` pair, except blank lines and those lines beginning with `#`, which are comments. In your user input YAML file you should supply information about input/output folder names and locations, constituents, load units, and load rate units. `three_ANA_sites.yml` looks like this:
 
     # This YAML file contains high-level user options for running batch.R on a
     # specific dataset. YAML files are made of key: value pairs like the ones below.
@@ -102,7 +102,7 @@ For this example, the input folder structure is therefore:
 
 The batch script loops over the constituents listed in the user inputs file, finds the corresponding rows in `siteInfo.csv`, and identifies the one water quality file and one discharge file for each site-constituent combination. Both files bear the name of a `site.id` and have the `.csv` suffix, and they appear in a constituent folder (e.g., `NO3`) and the discharge folder (`Q`), respectively.
 
-The script matches up water quality and discharge files by looking to the `matching.site` column of the `siteInfo` file. The `matching.site` ID should be the same for the constituent and discharge sites you wish to combine, even if the `site.id` differs for those two sites. The `site.id` will usually be the same for both files, but it could differ if water quality was sampled slightly downstream or upstream of the flow gage.
+Water quality and discharge are usually measured at the exact same location, but sometimes water quality is sampled somewhat downstream or upstream of the flow gage. The script handles this possible discrepancy by expecting two columns for site identifiers in the `siteInfo` file. The column called `site.id` describes precise site locations. If water quality is measured downstream or upstream of the flow gage, the concentration and discharge rows in the `siteInfo` file should have different `site.id` values. The column called `matching.site` is used to match up pairs of water quality and discharge sites that you want to combine into a load model. The `matching.site` should always be the same for the concentration row and discharge row to be combined.
 
 Here is an example of how the input consituent data should be formatted, with columns for date of the observation (`date`), discharge (`Q`), the concentration of the constituent (in this case `NO3`), additional columns that are ignored by this script (e.g., `CODIGO_ESTACAO`), and the censoring and data quality code (`status`), which follows the Brazillian ANA's convention of 0=bad value, 1=normal value, 2=value known to be less than or equal to the number given in the constituent (`NO3`) column.
 
@@ -177,6 +177,12 @@ Conventions to remember
 What's next?
 ------------
 
-Create your own input files following the conventions above. Edit that one line of `batch.R` to point to your own user inputs YAML file. Then run `source('batch.R')` to produce outputs for your sites.
+Create your own input files following the conventions above. Edit line 9 of `batch.R` to point to your own user inputs YAML file, e.g.,
+
+``` r
+inputs <- yaml::yaml.load_file('my_own_sites.yml')
+```
+
+Then run `source('batch.R')` to produce outputs for your sites.
 
 Inspect the output files to learn about the size and quality of the input data, how well each model performed, and how the model predictions varied across models and sites. We'll create a separate document with suggestions for how to use these outputs to assess the quality of the data, models, and predictions.
