@@ -226,10 +226,10 @@ for(i in 1:nrow(fileDF)) {
     x = multiYearSummary, 
     file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
   
-  writePDFreport(file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
-                 intdat = siteConstit[1:4], estdat = siteQ, allPreds = allPreds, 
-                 meta = siteMeta, inputCSV = inputMetrics, annualCSV = annualPreds)
   # Add plots to the pdf we have open for writing
+  writePDFreport(
+    file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
+    load.models = allModels, estdat = siteQ, siteMeta = siteMeta)
 }
 
 # Close the final pdf
