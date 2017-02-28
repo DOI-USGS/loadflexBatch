@@ -148,9 +148,9 @@ for(i in 1:nrow(fileDF)) {
   rloadest5param <- loadReg2(
     loadReg(loadRegFormula, data = siteConstitRloadest, 
             flow = qColName, dates = dateColName, time.step = "day",
-            flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
-            conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
-            load.units = getInfo(siteMeta, 'load.units')), 
+            flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
+            conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
+            load.units = getUnits(siteMeta, 'flux')), 
     site.id = getInfo(siteMeta, 'site.id'))
   
   # Fit the interpolation model (no censoring)
@@ -162,9 +162,9 @@ for(i in 1:nrow(fileDF)) {
   rloadest5forComp <- loadReg2( # only difference is the data (non-censored)
     loadReg(loadRegFormula, data = siteConstit, 
             flow = qColName, dates = dateColName, time.step = "day",
-            flow.units = getInfo(siteMeta, 'flow.units', unit.format = "rloadest"), 
-            conc.units = getInfo(siteMeta, 'conc.units', unit.format = "rloadest"),
-            load.units = getInfo(siteMeta, 'load.units')), 
+            flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
+            conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
+            load.units = getUnits(siteMeta, 'flux')), 
     site.id = getInfo(siteMeta, 'site.id'))
   comp <- loadComp(
     reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
