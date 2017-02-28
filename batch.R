@@ -41,8 +41,6 @@ graphics.off() # we don't want open PDF connections
 
 #-----------------loadflex--------------#
 
-allModels <- list() # this might get big. i'd prefer splitting & saving
-
 # Loop over unique site-constituent combinations, creating a set of output files
 # for each
 for(i in 1:nrow(fileDF)) {
@@ -176,9 +174,8 @@ for(i in 1:nrow(fileDF)) {
     reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
     interp.data = siteConstit)
   
-  allModels[[constitSite]] <- list(comp = comp, interpRect = interpRect, 
-                                   rloadest5param = rloadest5param)
   # Create list of all model objects
+  allModels <- list(composite=comp, interp=interpRect, rloadest=rloadest5param)
   
   # Make predictions
   pconc_rload <- predictSolute(rloadest5param, "conc", siteQ, se.pred = TRUE, date = TRUE)
