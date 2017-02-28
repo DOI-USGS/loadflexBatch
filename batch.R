@@ -28,13 +28,9 @@ allSiteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsA
 
 # Create output directories
 nConstits <- length(inputs$constituents)
-outConstit <- file.path(rep(inputs$outputFolder, nConstits), inputs$constituents)
-sapply(outConstit, dir.create, recursive = TRUE, showWarnings = FALSE)
-outTemporal <- file.path(rep(outConstit,4), c(rep("inputs", nConstits), 
-                                              rep("annual", nConstits), 
-                                              rep("multiYear", nConstits), 
-                                              rep("modelMetrics", nConstits)))
-sapply(outTemporal, dir.create, showWarnings = FALSE)
+outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), inputs$constituents)
+outDetailsDirs <- file.path(rep(outConstitDirs, each=4), rep(c("inputs","annual","multiYear","modelMetrics"), times=nConstits))
+sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 lastConstit <- NULL
 graphics.off() # we don't want open PDF connections
