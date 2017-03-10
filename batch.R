@@ -98,7 +98,10 @@ for(i in 1:nrow(fileDF)) {
     dupes <- which(as.character(siteConstit$date) == cD)
     return(dupes[-1])
   }))
-  if(length(nonFirstDupes) > 0) siteConstit <- siteConstit[-nonFirstDupes,]
+  if(length(nonFirstDupes) > 0) {
+    message("  * removing ", length(nonFirstDupes), " rows with duplicate dates")
+    siteConstit <- siteConstit[-nonFirstDupes,]
+  }
   
   # Format censored data for rloadest. For ANA, Status 0 means null or blank. 
   # Status 1 means a valid value, and 2 means that the respective value is a 
@@ -150,7 +153,7 @@ for(i in 1:nrow(fileDF)) {
             flow = qColName, dates = dateColName, time.step = "day",
             flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
             conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
-            load.units = getUnits(siteMeta, 'flux')), 
+            load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
     site.id = getInfo(siteMeta, 'site.id'))
   
   # Fit the interpolation model (no censoring)
@@ -164,64 +167,58 @@ for(i in 1:nrow(fileDF)) {
             flow = qColName, dates = dateColName, time.step = "day",
             flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
             conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
-            load.units = getUnits(siteMeta, 'flux')), 
+            load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
     site.id = getInfo(siteMeta, 'site.id'))
   comp <- loadComp(
     reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
     interp.data = siteConstit)
   
   # Create list of all model objects
-  allModels <- list(composite=comp, interp=interpRect, rloadest=rloadest5param)
+  allModels <- list(CMP=comp, INT=interpRect, REGC=rloadest5param, REGU=rloadest5forComp)
   
   # Make predictions
-  pconc_rload <- predictSolute(rloadest5param, "conc", siteQ, se.pred = TRUE, date = TRUE)
-  pconc_interp <- predictSolute(interpRect, "conc", siteQ, se.pred = TRUE, date = TRUE)
-  pconc_comp <- predictSolute(comp, "conc", siteQ, se.pred = TRUE, date = TRUE)
-  pflux_rload <- predictSolute(rloadest5param, "flux", siteQ, se.pred = TRUE, date = TRUE)
-  pflux_interp <- predictSolute(interpRect, "flux", siteQ, se.pred = TRUE, date = TRUE)
-  pflux_comp <- predictSolute(comp, "flux", siteQ, se.pred = TRUE, date = TRUE)
-  nPreds <- nrow(siteQ)
-  allConcPreds <- bind_rows(pconc_rload, pconc_interp, pconc_comp)
-  allConcPreds$model <- rep(c('rloadest','interp','composite'), each=nPreds)
+  predsLoad <- lapply(allModels, predictSolute, "flux", siteQ, se.pred = TRUE, date = TRUE)
+  predsConc <- lapply(allModels, predictSolute, "conc", siteQ, se.pred = TRUE, date = TRUE)
     
   # Summarize each model
   metrics <- bind_cols(
     data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
-    data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
+    data.frame(REGC=summarizeModel(rloadest5param)[-(1:2)]),
+    data.frame(REGU=summarizeModel(rloadest5forComp)[-(1:2)]),
     data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)[-(1:2)]),
     data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
   write.csv(x = metrics, file = file.path(inputs$outputFolder, constitName, "modelMetrics", paste0(constitSite, ".csv")), row.names = FALSE)
   
   # Predict annual fluxes
-  annualSummary <- bind_rows(
-    mutate(aggregateSolute(pflux_rload, siteMeta, agg.by = "water year"), model = "REG"),
-    mutate(aggregateSolute(pflux_interp, siteMeta, agg.by = "water year"), model = "INT"),
-    mutate(aggregateSolute(pflux_comp, siteMeta, agg.by = "water year"), model = "CMP")) %>%
+  annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    preds <- predsLoad[[mod]]
+    mutate(aggregateSolute(preds, siteMeta, agg.by="water year", format='flux rate'), model=mod)
+  })) %>%
     mutate(site.id=siteMeta@site.id, constituent=siteMeta@constituent) %>%
     select(site.id, constituent, model, everything())
   annualSummary <- reshape(
-    annualSummary, idvar = "water_year", direction = "wide", 
-    v.names = c("Conc","SE", "CI_lower", "CI_upper"), timevar = "model")
+    annualSummary, idvar = c('site.id','constituent',"Water_Year"), direction = "wide", 
+    v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
   annualSummary <- setNames(
     annualSummary, 
-    sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(annualSummary)))
+    sub(pattern='(.*)\\.(REGC|REGU|INT|CMP)', replacement='\\2.\\1', names(annualSummary)))
   write.csv(
     x = annualSummary, 
     file = file.path(inputs$outputFolder, constitName, "annual", paste0(constitSite, '.csv')), row.names=FALSE)
   
   # Predict the multi-year average flux
-  multiYearSummary <- bind_rows(
-    mutate(aggregateSolute(pflux_rload, siteMeta, agg.by = "mean water year"), model = "REG"),
-    mutate(aggregateSolute(pflux_interp, siteMeta, agg.by = "mean water year"), model = "INT"),
-    mutate(aggregateSolute(pflux_comp, siteMeta, agg.by = "mean water year"), model = "CMP")) %>%
+  multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    preds <- predsLoad[[mod]]
+    mutate(aggregateSolute(preds, siteMeta, agg.by="mean water year", format='flux rate'), model=mod)
+  })) %>%
     mutate(site.id=siteMeta@site.id, constituent=siteMeta@constituent) %>%
     select(site.id, constituent, model, everything())
   multiYearSummary <- reshape(
-    multiYearSummary, direction = "wide", idvar=c("site.id", "constituent"),
-    v.names = c("Multi_Year_Avg", "multiSE", "CI_lower", "CI_upper", "years.record", "years.complete"), timevar = "model")
+    multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
+    v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper", "years.record", "years.complete"), timevar = "model")
   multiYearSummary <- setNames(
     multiYearSummary, 
-    sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(multiYearSummary)))
+    sub(pattern='(.*)\\.(REGC|REGU|INT|CMP)', replacement='\\2.\\1', names(annualSummary)))
   write.csv(
     x = multiYearSummary, 
     file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(constitSite, '.csv')), row.names=FALSE)
