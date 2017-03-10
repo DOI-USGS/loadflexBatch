@@ -109,13 +109,15 @@ for(i in 1:nrow(fileDF)) {
   censor.statuses <- c('0'='', '1'='', '2'='<')
   siteConstit[[qwconstitColName]] <- 
     smwrQW::as.lcens(
-      values=ifelse(siteConstit[['status']] == 0, NA, siteConstit[[constitColName]])/2, 
+      values=ifelse(siteConstit[['status']] == 0, NA, siteConstit[[constitColName]]), 
       detlim=ifelse(siteConstit[['status']] < 2, 0, siteConstit[[constitColName]]), 
       censor.codes=censor.statuses[as.character(siteConstit[['status']])])
-  siteConstit[[constitColName]] <- ifelse(
-    siteConstit[['status']] == 0, NA, 
-    ifelse(siteConstit[['status']] == 2, siteConstit[[constitColName]] / 2, # it's still bad, but use half MDL because better than full MDL
-           siteConstit[[constitColName]]))
+  siteConstit[[constitColName]] <- 
+    ifelse(siteConstit[['status']] == 0, 
+           NA, 
+           ifelse(siteConstit[['status']] == 2, 
+                  siteConstit[[constitColName]] / 2, # it's still bad, but use half MDL because better than full MDL
+                  siteConstit[[constitColName]]))
   # Remove NA values, some of which may have been added by checking status
   siteConstit <- siteConstit[!is.na(siteConstit[[constitColName]]), ]
   
