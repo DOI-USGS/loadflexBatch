@@ -156,7 +156,8 @@ for(i in 1:nrow(fileDF)) {
             flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
             conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
             load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
-    site.id = getInfo(siteMeta, 'site.id'))
+    site.id = getInfo(siteMeta, 'site.id'),
+    pred.format = 'conc')
   
   # Fit the interpolation model (no censoring)
   interpRect <- loadInterp(
