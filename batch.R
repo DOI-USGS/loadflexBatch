@@ -85,12 +85,6 @@ for(i in 1:nrow(fileDF)) {
     message(sprintf(" * scaling discharge by basin area: multiplying by %1.3f", ratio))
   }
   
-  # Create metadata. We're depending on consistent column positions to get names
-  # and could probably do better (see #190)
-  constitColName <- names(siteConstit)[3]
-  qwconstitColName <- paste0(constitColName, '_qw')
-  qColName <- names(siteConstit)[2]
-  dateColName <- names(siteConstit)[1]
   
   # Remove duplicate observations
   constitDupes <- table(siteConstit$date) %>% .[.>1] %>% names()
@@ -101,6 +95,15 @@ for(i in 1:nrow(fileDF)) {
   if(length(nonFirstDupes) > 0) {
     message("  * removing ", length(nonFirstDupes), " rows with duplicate dates")
     siteConstit <- siteConstit[-nonFirstDupes,]
+    # Identify and require column names as given in site info
+    constitColName <- constitSiteInfo$constituent.CONC
+    qwconstitColName <- paste0(constitColName, '_qw')
+    qColName <- constitSiteInfo$constituent.FLOW
+    dateColName <- inputs$date
+    missingConstitCols <- names(which(sapply(c(dateColName, constitColName, qColName), function(col) !(col %in% colnames(siteConstit)))))
+    missingQCols <- names(which(sapply(c(dateColName, qColName), function(col) !(col %in% colnames(siteQ)))))
+    if(length(missingConstitCols) > 0) stop("missing these columns in the constituent data: ", paste0(missingConstitCols, collapse=', '))
+    if(length(missingQCols) > 0) stop("missing these columns in the discharge data: ", paste0(missingQCols, collapse=', '))
   }
   
   # Format censored data for rloadest. For ANA, Status 0 means null or blank. 
