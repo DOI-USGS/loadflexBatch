@@ -4,8 +4,9 @@
 
 # input file information
 inputFolder: "three_ANA_sites/input" # folder containing all input files and subfolders
-constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data
-dischargeFolder: "Q" # name of the folder inside inputFolder containing daily discharge data
+constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data, and the column names for constituents within those data files
+discharge: "Q" # name of the folder inside inputFolder containing daily discharge data, and the column name for discharge within those data files
+date: "date" # column name for dates within the constituent and discharge data files
 siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing site and constituent metadata
 
 # desired units for output
