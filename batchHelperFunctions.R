@@ -90,23 +90,29 @@ matchFiles <- function(siteInfo) {
   return(siteFileSets)
 }
 
-# recombine summaries into single dfs
+#' Combine 1-row summary files into a single multi-row file
+#' 
+#' @param csvType the name of the summary type to combine
+#' @param constitSiteInfo the metadata table linking constituent and discharge files
+#' @param outputFolder the folder where output should be written
 summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics'), 
-                          fileDF, outputFolder) {
+                          constitSiteInfo, outputFolder) {
   csvType <- match.arg(csvType)
-  allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
-    constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
-    constitName <- basename(dirname(fileDF$constitFile[i]))
-    csvFile <- file.path(outputFolder, constitName, csvType, paste0(constitStation, '.csv'))
+  
+  # read and combine the 1-row data files for all sites and constituents
+  allCsvs <- bind_rows(lapply(seq_len(nrow(siteFileSets)), function(i) {
+    matchingSite <- constitSiteInfo$matching.site[i] # this is how we'll name the output files
+    constitName <- constitSiteInfo$constituent.CONC[i]
+    csvFile <- file.path(outputFolder, constitName, csvType, paste0(matchingSite, '.csv'))
     tryCatch({
-      suppressWarnings(read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE))
+      read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE)
     }, error=function(e) {
       message(paste0('could not read ', csvFile), call.=FALSE)
       NULL
     })
   }))
   
-  #write separate csvs for each constituent
+  # write separate csvs for each constituent
   constits <- unique(allCsvs$constituent)
   sapply(constits, function(con) {
     writeFile = file.path(outputFolder, con, paste0(con,"_", csvType,".csv"))
@@ -119,40 +125,40 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics
   return(allCsvs)
 }
 
-#write plots to pdfs for a single site/constituent pair
-#handles "tall" preds data frame of multiple models
-writePDFreport <- function(file, load.models, estdat, siteMeta) {
-  #pdf(file, height = 11, width = 8.5)
+#' Create plots for all models for a single site/constituent pair
+#' 
+#' @param loadModels a list of load models
+#' @param estdata data.frame of estimation data (dates and discharges)
+#' @param siteMeta loadflex metadata object
+writePDFreport <- function(loadModels, estdat, siteMeta) {
   
   # make plots. the first page is redundant across models
   modelNames <- data.frame(
-    short = c("rloadest", "interp", "composite"),
-    long = c("rloadest 5 parameter model",
-             "Interpolation Model",
-             "Composite rloadest and interpolation model"),
+    short = c("REG", "INT", "CMP"),
+    long = c("Regression Model (rloadest 5 parameter)",
+             "Interpolation Model (rectangular)",
+             "Composite Model (rloadest + interpolation)"),
     stringsAsFactors = FALSE)
   
-  for(m in 1:length(load.models)) {
-    load.model <- load.models[[m]]
-    load.model@metadata <- siteMeta
-    modelLong <- modelNames$long[modelNames$short == names(load.models)[m]]
+  for(m in 1:length(loadModels)) {
+    loadModel <- loadModels[[m]]
+    loadModel@metadata <- siteMeta
+    modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
     
     # page 1
     par(omi = c(2,2,2,2))
-    plotEGRET("multiPlotDataOverview", load.model=load.model, newdata=estdat)
+    plotEGRET("multiPlotDataOverview", load.model=loadModel, newdata=estdat)
     title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
   
     # page 2
     par(mfrow=c(2,1))
-    plotEGRET("plotConcTimeDaily", load.model=load.model, newdata=estdat, mgp = c(4,1,0))
+    plotEGRET("plotConcTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
     title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
-    plotEGRET("plotFluxTimeDaily", load.model=load.model, newdata=estdat, mgp = c(4,1,0))
+    plotEGRET("plotFluxTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
     
     # page 3
     par(mfrow=c(1,1))
-    plotEGRET("fluxBiasMulti", load.model=load.model, newdata=estdat, moreTitle = modelLong)
+    plotEGRET("fluxBiasMulti", load.model=loadModel, newdata=estdat, moreTitle = modelLong)
     title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
   }
-  
-  #dev.off()
 }
