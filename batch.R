@@ -17,29 +17,20 @@ library(tools)
 library(rloadest)
 source('batchHelperFunctions.R') # functions that support this script are stored here
 
-# Require at least rloadest 0.4.4 for formula fix
-if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
-  stop("rloadest version 0.4.4 or greater is required")
-}
-
 # Read the site info file and attach corresponding files
 allSiteInfo <- combineSpecs(inputs)
 siteFileSets <- matchFiles(allSiteInfo)
 
 # Create output directories
-nConstits <- length(inputs$constituents)
-outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), inputs$constituents)
+constits <- unique(siteFileSets$constituent.CONC)
+nConstits <- length(constits)
+outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), constits)
 outDetailsDirs <- file.path(rep(outConstitDirs, each=4), rep(c("inputs","annual","multiYear","modelMetrics"), times=nConstits))
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
-lastConstit <- NULL
-graphics.off() # we don't want open PDF connections
 
 #-----------------loadflex--------------#
 
-# Loop over unique site-constituent combinations, creating a set of output files
-# for each
-for(i in 1:nrow(fileDF)) {
   message(paste0('processing constituent file ', fileDF$constitFile[i]))
   
   #TODO: if a constituent file is missing, skip it and keep going (#142)
@@ -57,20 +48,6 @@ for(i in 1:nrow(fileDF)) {
   constitSite <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
   constitName <- basename(dirname(fileDF$constitFile[i]))
  
-  # If switching to a new consituent, open a new pdf. It's important that fileDF
-  # is sorted by consituent! We've done this by structuring makeFileDF so it
-  # loops over folders
-  if(is.null(lastConstit)) {
-    pdf(height = 11, width = 8.5, 
-        file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
-    lastConstit <- constitName
-  }
-  if(constitName != lastConstit) {
-    lastConstit <- constitName
-    dev.off()
-    pdf(height = 11, width = 8.5, 
-        file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
-  }
   
   # Isolate the site, constituent, and flow metadata relevant to this iteration
   constitSiteInfo <- filter(allSiteInfo, matching.site == constitSite, constituent == constitName)
@@ -95,6 +72,20 @@ for(i in 1:nrow(fileDF)) {
   if(length(nonFirstDupes) > 0) {
     message("  * removing ", length(nonFirstDupes), " rows with duplicate dates")
     siteConstit <- siteConstit[-nonFirstDupes,]
+# Loop over each constituent, creating a pdf of all sites and models for that 
+# constituent (plus many smaller, site- and model-specific files)
+for(constitName in constits) {
+  
+  # Start this constituent's pdf file
+  graphics.off()
+  pdf(height = 11, width = 8.5, 
+      file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
+  
+  #### Loop over sites within constituent ####
+  
+  # Loop over sites having this constituent
+  constSites <- filter(siteFileSets, constituent.CONC == constitName)
+  for(siteName in constSites$matching.site) {
     # Identify and require column names as given in site info
     constitColName <- constitSiteInfo$constituent.CONC
     qwconstitColName <- paste0(constitColName, '_qw')
@@ -233,6 +224,8 @@ for(i in 1:nrow(fileDF)) {
   writePDFreport(
     file = file.path(inputs$outputFolder, constitName, paste(constitSite, "report.pdf", sep = "_")),
     load.models = allModels, estdat = siteQ, siteMeta = siteMeta)
+  # Close this constituent's pdf file
+  dev.off()
 }
 
 # Close the final pdf
