@@ -1,30 +1,56 @@
-#read-in function
-
-# make a data.frame describing the data files that exist in this directory for
-# the given constituents
-makeFileDF <- function(input.folder, constits, discharge.folder) {
-  #TODO:check that all constituent files have matching discharge records
-  #df of corresponding files
-  allFolders <- file.path(input.folder, c(constits, discharge.folder))
+#' Make a data.frame describing the constituent and flow sites and the data
+#' files for those variables
+#' 
+#' @param inputs list of user inputs as given in a yml file
+combineSpecs <- function(inputs) {
+  
+  # read in the siteInfo file
+  siteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
+  
+  # identify the constituent and flow variable named in siteInfo and inputs
+  obsVars <- unique(siteInfo$constituent)
+  flow <- inputs$discharge
+  constitsSiteinfo <- setdiff(obsVars, flow)
+  constitsInputs <- inputs$constituents
+  constitsFinal <- union(constitsSiteinfo, constitsInputs)
+  
+  # flag the flow rows
+  siteInfo <- mutate(siteInfo, is.flow = constituent == flow)
+  
+  # check inputs for errors
+  if(!flow %in% obsVars) {
+    stop('siteInfo constituents must include discharge as named in inputs yaml (', inputs$discharge, ')')
+  }
+  if(length(inpOnly <- setdiff(constitsInputs, constitsSiteinfo)) > 0) {
+    warning('some constituents named in inputs yaml are not in siteInfo: ', paste0(inpOnly, collapse=', '))
+  }
+  
+  # subset siteInfo if specified in inputs
+  if(length(siOnly <- setdiff(constitsSiteinfo, constitsInputs)) > 0) {
+    message('subsetting siteInfo to only those constituents named in inputs yaml\n',
+            '  removing: ', paste0(siOnly, collapse=', ', '\n'),
+            '  keeping: ', paste0(si.and.inp, collapse=', '))
+    siteInfo <- filter(siteInfo, is.flow | constituent %in% constitsFinal)
+  }
+  
+  # require that all specified constituent and discharge folders exist
+  allFolders <- file.path(inputs$inputFolder, c(constitsFinal, flow))
   if(!all(dir.exists(allFolders))) {
     stop("Input or constituent folder does not exist")
   }
   
-  #get all constituent files
-  constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
-  constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, discharge.folder, constitNameOnly)
-  #TODO: warning if not matching discharge.folder, will be skipped
-  #should deal with if a discharge file doesn't exist?
+  # compute expected filenames based on siteInfo
+  siteInfo <- siteInfo %>%
+    mutate(filepath = file.path(inputs$inputFolder, constituent, paste0(site.id, '.csv')))
   
-  fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
-  return(fileDF)
-}
   # check that all named files exist; remove those that don't exist (#142)
   if(length(missingFiles <- siteInfo$filepath[!file.exists(siteInfo$filepath)]) > 0) {
     warning("omitting these missing files from the analysis:\n", paste0('  ', missingFiles, collapse='\n'))
     siteInfo <- filter(siteInfo, !(filepath %in% missingFiles))
   }
+  
+  return(siteInfo)
+} 
 
 
 # recombine summaries into single dfs
