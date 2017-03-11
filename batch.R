@@ -6,7 +6,7 @@
 
 #### User inputs ####
 
-inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
+inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
 
 
 #### Load packages, read inputs, set up directories ####
@@ -37,7 +37,7 @@ for(constitName in constits) {
   
   # Start this constituent's pdf file
   graphics.off()
-  pdf(height = 11, width = 8.5, 
+  pdf(height = 10, width = 7.5, paper = "letter",
       file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
   
   #### Loop over sites within constituent ####
@@ -242,7 +242,6 @@ for(constitName in constits) {
   # Close this constituent's pdf file
   dev.off()
 }
-  
 
 #### Combine outputs from all sites ####
 

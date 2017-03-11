@@ -140,25 +140,27 @@ writePDFreport <- function(loadModels, estdat, siteMeta) {
              "Composite Model (rloadest + interpolation)"),
     stringsAsFactors = FALSE)
   
+  # page 1: input data with censoring
+  plotEGRET("multiPlotDataOverview", meta = siteMeta, data=getFittingData(loadModels$REG), newdata = estdat)
+  title(main="Input Data", line=-1, adj=0, outer=TRUE)
+  title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
+  
   for(m in 1:length(loadModels)) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
+    modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
     modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
     
-    # page 1
-    par(omi = c(2,2,2,2))
-    plotEGRET("multiPlotDataOverview", load.model=loadModel, newdata=estdat)
-    title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
-  
-    # page 2
-    par(mfrow=c(2,1))
+    # pages 2,4,6
+    par(mfrow=c(2,1), oma=c(0,0,1,0))
     plotEGRET("plotConcTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
-    title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
+    title(main=paste0("Predictions"), line=0, adj=0, outer=TRUE)
+    title(main=sprintf("%s-%s-1", siteMeta@site.id, modelShort), line=0, adj=1, outer=TRUE)
     plotEGRET("plotFluxTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
     
-    # page 3
-    par(mfrow=c(1,1))
-    plotEGRET("fluxBiasMulti", load.model=loadModel, newdata=estdat, moreTitle = modelLong)
-    title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
+    # pages 3,5,7
+    plotEGRET("fluxBiasMulti", load.model=loadModel, newdata=estdat, moreTitle = paste0(modelLong, '; '))
+    title(main=paste0("Diagnostics"), line=-1, adj=0, outer=TRUE)
+    title(main=sprintf("%s-%s-2", siteMeta@site.id, modelShort), line=-1, adj=1, outer=TRUE)
   }
 }
