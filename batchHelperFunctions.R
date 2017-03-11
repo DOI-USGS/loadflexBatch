@@ -52,6 +52,43 @@ combineSpecs <- function(inputs) {
   return(siteInfo)
 } 
 
+#' Create a data.frame of site and file info where each row refers to a single 
+#' site-constituent-discharge combo to be modeled
+#' 
+#' @param siteInfo data.frame of site information, augmented by combineSpecs()
+matchFiles <- function(siteInfo) {
+  
+  # get the unique constituents in siteInfo
+  siteConstPairs <- siteInfo %>%
+    filter(!is.flow) %>%
+    select(site.id, constituent) %>%
+    distinct
+  
+  siteFileSets <- bind_rows(lapply(seq_len(nrow(siteConstPairs)), function(siteConstRow) {
+    site.id <- siteConstPairs[siteConstRow, 'site.id']
+    constituent <- siteConstPairs[siteConstRow, 'constituent']
+    
+    # find the row with constituent site/file info
+    constFile <- siteConstPairs[siteConstRow,] %>%
+      left_join(siteInfo, by=c('site.id','constituent'))
+    if(nrow(constFile) != 1) {
+      stop('need 1 site-constituent file, found:\n', paste0('  ', constFile$filepath, collapse='\n'))
+    }
+    
+    # find the row with flow site/file info
+    flowFile <- select(constFile, matching.site) %>%
+      left_join(filter(siteInfo, is.flow), by='matching.site')
+    if(nrow(flowFile) != 1) {
+      stop('need 1 flow file for ', site.id, ' ', constituent, ', found:\n', paste0('  ', flowFile$filepath, collapse='\n'))
+    }
+    
+    # return their joined 1-row df
+    full_join(constFile, flowFile, suffix=c('.CONC', '.FLOW'), by='matching.site') %>%
+      select(matching.site, everything())
+  }))
+  
+  return(siteFileSets)
+}
 
 # recombine summaries into single dfs
 summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics'), 

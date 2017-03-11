@@ -22,9 +22,9 @@ if(compareVersion(as.character(packageVersion("rloadest")),"0.4.4") == -1) {
   stop("rloadest version 0.4.4 or greater is required")
 }
 
-# Read the directory structure and site info file to determine what's available
-fileDF <- makeFileDF(inputs$inputFolder, constits = inputs$constituents, discharge.folder = inputs$dischargeFolder)
-allSiteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
+# Read the site info file and attach corresponding files
+allSiteInfo <- combineSpecs(inputs)
+siteFileSets <- matchFiles(allSiteInfo)
 
 # Create output directories
 nConstits <- length(inputs$constituents)
