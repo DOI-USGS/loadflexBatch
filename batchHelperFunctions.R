@@ -20,6 +20,11 @@ makeFileDF <- function(input.folder, constits, discharge.folder) {
   fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
   return(fileDF)
 }
+  # check that all named files exist; remove those that don't exist (#142)
+  if(length(missingFiles <- siteInfo$filepath[!file.exists(siteInfo$filepath)]) > 0) {
+    warning("omitting these missing files from the analysis:\n", paste0('  ', missingFiles, collapse='\n'))
+    siteInfo <- filter(siteInfo, !(filepath %in% missingFiles))
+  }
 
 
 # recombine summaries into single dfs
