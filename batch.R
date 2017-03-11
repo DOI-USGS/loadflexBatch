@@ -4,12 +4,12 @@
 # See https://github.com/USGS-R/loadflexBatch/blob/master/blog.md for an
 # overview and instructions on how to use this file.
 
-#------------------User Inputs--------------------#
+#### User inputs ####
 
 inputs <- yaml::yaml.load_file('Hirsch_sites.yml')
 
 
-#-------------------------Load packages, check files, set up directories-----------------------# 
+#### Load packages, read inputs, set up directories ####
 
 library(dplyr)
 library(loadflex)
@@ -29,7 +29,7 @@ outDetailsDirs <- file.path(rep(outConstitDirs, each=4), rep(c("inputs","annual"
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 
-#-----------------loadflex--------------#
+#### Loop over constituents ####
 
   message(paste0('processing constituent file ', fileDF$constitFile[i]))
   
@@ -95,6 +95,10 @@ for(constitName in constits) {
     missingQCols <- names(which(sapply(c(dateColName, qColName), function(col) !(col %in% colnames(siteQ)))))
     if(length(missingConstitCols) > 0) stop("missing these columns in the constituent data: ", paste0(missingConstitCols, collapse=', '))
     if(length(missingQCols) > 0) stop("missing these columns in the discharge data: ", paste0(missingQCols, collapse=', '))
+    #### Munge the input data ####
+    #### Create loadflex models ####
+    #### Create output data files ####
+    #### Create plots  ####
   }
   
   # Format censored data for rloadest. For ANA, Status 0 means null or blank. 
@@ -230,6 +234,7 @@ for(constitName in constits) {
 
 # Close the final pdf
 dev.off()
+#### Combine outputs from all sites ####
 
 # Combine the outputs from each site-constituent combination into a single table
 # per output type and constituent
