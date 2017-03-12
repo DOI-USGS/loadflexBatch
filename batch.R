@@ -45,6 +45,8 @@ for(constitName in constits) {
   # Loop over sites having this constituent
   constSites <- filter(siteFileSets, constituent.CONC == constitName)
   for(siteName in constSites$matching.site) {
+    
+    # Plan for and announce this iteration
     constitSiteInfo <- filter(constSites, matching.site == siteName)
     matchingSite <- constitSiteInfo$matching.site # this is how we'll name the output files
     message(paste0(
@@ -117,8 +119,9 @@ for(constitName in constits) {
     # Create a formal metadata object
     siteMeta <- metadata(
       constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units.CONC, 
-      flow = qColName, flow.units = constitSiteInfo$units.FLOW, 
-      load.units = inputs$loadUnits, load.rate.units = inputs$loadRateUnits, dates = dateColName,
+      flow = qColName, flow.units = constitSiteInfo$units.FLOW, load.units = inputs$loadUnits, 
+      load.rate.units = paste(inputs$loadUnits, 'd^-1'),  # we'll use inputs$loadRateUnits at prediction time
+      dates = dateColName,
       site.name = constitSiteInfo$site.name.CONC, site.id = constitSiteInfo$site.id.CONC, 
       lat = constitSiteInfo$lat.CONC, lon = constitSiteInfo$lon.CONC, basin.area = constitSiteInfo$basin.area.CONC,
       flow.site.name = constitSiteInfo$site.name.FLOW, flow.site.id = constitSiteInfo$site.id.FLOW, 
@@ -195,7 +198,20 @@ for(constitName in constits) {
     
     # Make predictions
     predsLoad <- lapply(allModels, predictSolute, "flux", siteQ, se.pred = TRUE, date = TRUE)
-    #predsConc <- lapply(allModels, predictSolute, "conc", siteQ, se.pred = TRUE, date = TRUE) # not used
+    
+    # Convert prediction units if needed
+    model.load.rate.units <- getInfo(siteMeta, 'load.rate.units')
+    input.load.rate.units <- loadflex:::translateFreeformToUnitted(inputs$loadRateUnits)
+    if(model.load.rate.units != input.load.rate.units) {
+      conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
+      predsLoad <- lapply(predsLoad, function(loads) {
+        mutate(
+          loads,
+          fit = fit * conv.load.rate,
+          se.pred = se.pred * conv.load.rate
+        )
+      })
+    }
     
     # Predict annual fluxes
     annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {

@@ -11,7 +11,7 @@ siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing si
 
 # desired units for output
 loadUnits: "kg"
-loadRateUnits: "kg/d"
+loadRateUnits: "kg y^-1"
 
 # output folder where results files and subfolders will be written
 outputFolder: "Hirsch_sites/output"
