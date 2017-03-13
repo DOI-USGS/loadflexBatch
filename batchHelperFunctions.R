@@ -1,44 +1,118 @@
-#read-in function
-
-# make a data.frame describing the data files that exist in this directory for
-# the given constituents
-makeFileDF <- function(input.folder, constits, discharge.folder) {
-  #TODO:check that all constituent files have matching discharge records
-  #df of corresponding files
-  allFolders <- file.path(input.folder, c(constits, discharge.folder))
+#' Make a data.frame describing the constituent and flow sites and the data
+#' files for those variables
+#' 
+#' @param inputs list of user inputs as given in a yml file
+combineSpecs <- function(inputs) {
+  
+  # read in the siteInfo file
+  siteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
+  
+  # identify the constituent and flow variable named in siteInfo and inputs
+  obsVars <- unique(siteInfo$constituent)
+  flow <- inputs$discharge
+  constitsSiteinfo <- setdiff(obsVars, flow)
+  constitsInputs <- inputs$constituents
+  constitsFinal <- union(constitsSiteinfo, constitsInputs)
+  
+  # flag the flow rows
+  siteInfo <- mutate(siteInfo, is.flow = constituent == flow)
+  
+  # check inputs for errors
+  if(!flow %in% obsVars) {
+    stop('siteInfo constituents must include discharge as named in inputs yaml (', inputs$discharge, ')')
+  }
+  if(length(inpOnly <- setdiff(constitsInputs, constitsSiteinfo)) > 0) {
+    warning('some constituents named in inputs yaml are not in siteInfo: ', paste0(inpOnly, collapse=', '))
+  }
+  
+  # subset siteInfo if specified in inputs
+  if(length(siOnly <- setdiff(constitsSiteinfo, constitsInputs)) > 0) {
+    message('subsetting siteInfo to only those constituents named in inputs yaml\n',
+            '  removing: ', paste0(siOnly, collapse=', ', '\n'),
+            '  keeping: ', paste0(si.and.inp, collapse=', '))
+    siteInfo <- filter(siteInfo, is.flow | constituent %in% constitsFinal)
+  }
+  
+  # require that all specified constituent and discharge folders exist
+  allFolders <- file.path(inputs$inputFolder, c(constitsFinal, flow))
   if(!all(dir.exists(allFolders))) {
     stop("Input or constituent folder does not exist")
   }
   
-  #get all constituent files
-  constitFiles <- list.files(file.path(input.folder, constits), full.names = TRUE)
-  constitNameOnly <- basename(constitFiles)
-  qFiles <- file.path(input.folder, discharge.folder, constitNameOnly)
-  #TODO: warning if not matching discharge.folder, will be skipped
-  #should deal with if a discharge file doesn't exist?
+  # compute expected filenames based on siteInfo
+  siteInfo <- siteInfo %>%
+    mutate(filepath = file.path(inputs$inputFolder, constituent, paste0(site.id, '.csv')))
   
-  fileDF <- data.frame(constitFile = constitFiles, qFile=qFiles, stringsAsFactors = FALSE)
-  return(fileDF)
+  # check that all named files exist; remove those that don't exist (#142)
+  if(length(missingFiles <- siteInfo$filepath[!file.exists(siteInfo$filepath)]) > 0) {
+    warning("omitting these missing files from the analysis:\n", paste0('  ', missingFiles, collapse='\n'))
+    siteInfo <- filter(siteInfo, !(filepath %in% missingFiles))
+  }
+  
+  return(siteInfo)
+} 
+
+#' Create a data.frame of site and file info where each row refers to a single 
+#' site-constituent-discharge combo to be modeled
+#' 
+#' @param siteInfo data.frame of site information, augmented by combineSpecs()
+matchFiles <- function(siteInfo) {
+  
+  # get the unique constituents in siteInfo
+  siteConstPairs <- siteInfo %>%
+    filter(!is.flow) %>%
+    select(site.id, constituent) %>%
+    distinct
+  
+  siteFileSets <- bind_rows(lapply(seq_len(nrow(siteConstPairs)), function(siteConstRow) {
+    site.id <- siteConstPairs[siteConstRow, 'site.id']
+    constituent <- siteConstPairs[siteConstRow, 'constituent']
+    
+    # find the row with constituent site/file info
+    constFile <- siteConstPairs[siteConstRow,] %>%
+      left_join(siteInfo, by=c('site.id','constituent'))
+    if(nrow(constFile) != 1) {
+      stop('need 1 site-constituent file, found:\n', paste0('  ', constFile$filepath, collapse='\n'))
+    }
+    
+    # find the row with flow site/file info
+    flowFile <- select(constFile, matching.site) %>%
+      left_join(filter(siteInfo, is.flow), by='matching.site')
+    if(nrow(flowFile) != 1) {
+      stop('need 1 flow file for ', site.id, ' ', constituent, ', found:\n', paste0('  ', flowFile$filepath, collapse='\n'))
+    }
+    
+    # return their joined 1-row df
+    full_join(constFile, flowFile, suffix=c('.CONC', '.FLOW'), by='matching.site') %>%
+      select(matching.site, everything())
+  }))
+  
+  return(siteFileSets)
 }
 
-
-# recombine summaries into single dfs
+#' Combine 1-row summary files into a single multi-row file
+#' 
+#' @param csvType the name of the summary type to combine
+#' @param constitSiteInfo the metadata table linking constituent and discharge files
+#' @param outputFolder the folder where output should be written
 summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics'), 
-                          fileDF, outputFolder) {
+                          constitSiteInfo, outputFolder) {
   csvType <- match.arg(csvType)
-  allCsvs <- bind_rows(lapply(seq_len(nrow(fileDF)), function(i) {
-    constitStation <- basename(file_path_sans_ext(fileDF$constitFile[i])) 
-    constitName <- basename(dirname(fileDF$constitFile[i]))
-    csvFile <- file.path(outputFolder, constitName, csvType, paste0(constitStation, '.csv'))
+  
+  # read and combine the 1-row data files for all sites and constituents
+  allCsvs <- bind_rows(lapply(seq_len(nrow(siteFileSets)), function(i) {
+    matchingSite <- constitSiteInfo$matching.site[i] # this is how we'll name the output files
+    constitName <- constitSiteInfo$constituent.CONC[i]
+    csvFile <- file.path(outputFolder, constitName, csvType, paste0(matchingSite, '.csv'))
     tryCatch({
-      suppressWarnings(read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE))
+      read.csv(csvFile, header=TRUE, stringsAsFactors=FALSE)
     }, error=function(e) {
       message(paste0('could not read ', csvFile), call.=FALSE)
       NULL
     })
   }))
   
-  #write separate csvs for each constituent
+  # write separate csvs for each constituent
   constits <- unique(allCsvs$constituent)
   sapply(constits, function(con) {
     writeFile = file.path(outputFolder, con, paste0(con,"_", csvType,".csv"))
@@ -51,40 +125,42 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics
   return(allCsvs)
 }
 
-#write plots to pdfs for a single site/constituent pair
-#handles "tall" preds data frame of multiple models
-writePDFreport <- function(file, load.models, estdat, siteMeta) {
-  #pdf(file, height = 11, width = 8.5)
+#' Create plots for all models for a single site/constituent pair
+#' 
+#' @param loadModels a list of load models
+#' @param estdata data.frame of estimation data (dates and discharges)
+#' @param siteMeta loadflex metadata object
+writePDFreport <- function(loadModels, estdat, siteMeta) {
   
   # make plots. the first page is redundant across models
   modelNames <- data.frame(
-    short = c("rloadest", "interp", "composite"),
-    long = c("rloadest 5 parameter model",
-             "Interpolation Model",
-             "Composite rloadest and interpolation model"),
+    short = c("REG", "INT", "CMP"),
+    long = c("Regression Model (rloadest 5 parameter)",
+             "Interpolation Model (rectangular)",
+             "Composite Model (rloadest + interpolation)"),
     stringsAsFactors = FALSE)
   
-  for(m in 1:length(load.models)) {
-    load.model <- load.models[[m]]
-    load.model@metadata <- siteMeta
-    modelLong <- modelNames$long[modelNames$short == names(load.models)[m]]
-    
-    # page 1
-    par(omi = c(2,2,2,2))
-    plotEGRET("multiPlotDataOverview", load.model=load.model, newdata=estdat)
-    title(paste("Input data:", getInfo(siteMeta, "site.id"), modelLong))
+  # page 1: input data with censoring
+  plotEGRET("multiPlotDataOverview", meta = siteMeta, data=getFittingData(loadModels$REG), newdata = estdat)
+  title(main="Input Data", line=-1, adj=0, outer=TRUE)
+  title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
   
-    # page 2
-    par(mfrow=c(2,1))
-    plotEGRET("plotConcTimeDaily", load.model=load.model, newdata=estdat, mgp = c(4,1,0))
-    title(paste("Predictions:", getInfo(siteMeta, "site.id"), modelLong), line = 6)
-    plotEGRET("plotFluxTimeDaily", load.model=load.model, newdata=estdat, mgp = c(4,1,0))
+  for(m in 1:length(loadModels)) {
+    loadModel <- loadModels[[m]]
+    loadModel@metadata <- siteMeta
+    modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
+    modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
     
-    # page 3
-    par(mfrow=c(1,1))
-    plotEGRET("fluxBiasMulti", load.model=load.model, newdata=estdat, moreTitle = modelLong)
-    title(paste("Diagnostics:", getInfo(siteMeta, "site.id"), modelLong), line = 3)
+    # pages 2,4,6
+    par(mfrow=c(2,1), oma=c(0,0,1,0))
+    plotEGRET("plotConcTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
+    title(main=paste0("Predictions"), line=0, adj=0, outer=TRUE)
+    title(main=sprintf("%s-%s-1", siteMeta@site.id, modelShort), line=0, adj=1, outer=TRUE)
+    plotEGRET("plotFluxTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
+    
+    # pages 3,5,7
+    plotEGRET("fluxBiasMulti", load.model=loadModel, newdata=estdat, moreTitle = paste0(modelLong, '; '))
+    title(main=paste0("Diagnostics"), line=-1, adj=0, outer=TRUE)
+    title(main=sprintf("%s-%s-2", siteMeta@site.id, modelShort), line=-1, adj=1, outer=TRUE)
   }
-  
-  #dev.off()
 }
