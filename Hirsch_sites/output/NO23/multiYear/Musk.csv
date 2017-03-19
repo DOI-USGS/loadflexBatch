@@ -1,2 +1,2 @@
-"site.id","constituent","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","CMP.years.record","CMP.years.complete","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","INT.years.record","INT.years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","REG.years.record","REG.years.complete"
-"Musk","NO23",12712998.9134774,318062.57620352,12089607.7192885,13336390.1076663,10,10,12141266.2010633,57322.9708792313,12028915.2426532,12253617.1594735,10,10,16686001.7257455,356359.57050451,15987549.8020105,17384453.6494805,10,10
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
+"Musk","NO23",10,10,16690104.0479609,1206215.92408248,14450714.2609704,19176365.3501592,12712998.9134774,NA,NA,NA,12141266.2010633,NA,NA,NA

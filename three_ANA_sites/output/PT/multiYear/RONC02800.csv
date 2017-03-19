@@ -1,2 +1,2 @@
-"site.id","constituent","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","CMP.years.record","CMP.years.complete","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","INT.years.record","INT.years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","REG.years.record","REG.years.complete"
-"RONC02800","PT",16559.3019158326,631.646016094398,15321.2984733094,17797.3053583559,15,15,12155.3812066205,212.806842984299,11738.2874587076,12572.4749545334,15,15,21797.7402013187,6276.42173258736,9496.17965366296,34099.3007489744,15,15
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
+"RONC02800","PT",15,13,23327.575991223,118158.385289478,129.611364174771,157507.151236271,17795.5052642545,NA,NA,NA,12326.495439849,NA,NA,NA

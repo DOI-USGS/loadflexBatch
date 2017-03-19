@@ -164,10 +164,10 @@ for(constitName in constits) {
       pred.format = 'conc')
     comp <- loadComp(
       reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
-      interp.data = siteConstit)
+      interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
     # Create list of all model objects
-    allModels <- list(CMP=comp, INT=interpRect, REG=rloadest5param)
+    allModels <- list(REG=rloadest5param, CMP=comp, INT=interpRect)
     
     
     #### Create output data files ####
@@ -178,7 +178,7 @@ for(constitName in constits) {
     # simpler in place for loadflex, at which point we'll add that to
     # summarizeInputs.
     inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
-    inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
+    inputMetrics$fitdat.num.censored <- length(which(siteConstit[['status']] == 2))
     inputMetrics$estdat.num.censored <- NULL # assuming no censoring in Q
     write.csv(
       x = inputMetrics,
@@ -196,27 +196,47 @@ for(constitName in constits) {
       file = file.path(inputs$outputFolder, constitName, "modelMetrics", paste0(matchingSite, ".csv")),
       row.names = FALSE)
     
-    # Make predictions
-    predsLoad <- lapply(allModels, predictSolute, "flux", siteQ, se.pred = TRUE, date = TRUE)
-    
-    # Convert prediction units if needed
+    # Prepare to convert prediction units if needed
     model.load.rate.units <- getInfo(siteMeta, 'load.rate.units')
     input.load.rate.units <- loadflex:::translateFreeformToUnitted(inputs$loadRateUnits)
-    if(model.load.rate.units != input.load.rate.units) {
-      conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
-      predsLoad <- lapply(predsLoad, function(loads) {
+    conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
+    
+    # Make predictions
+    predsLoad <- lapply(allModels, function(mod) {
+      (if(is(mod, 'loadComp')) {
+        suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
+          mutate(se.pred=NA)
+      } else {
+        predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
+      }) %>%
         mutate(
-          loads,
           fit = fit * conv.load.rate,
           se.pred = se.pred * conv.load.rate
         )
-      })
-    }
+    })
     
     # Predict annual fluxes
     annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
-      preds <- predsLoad[[mod]]
-      mutate(aggregateSolute(preds, siteMeta, agg.by="water year", format='flux rate'), model=mod)
+      if(is(allModels[[mod]], 'loadReg2')) {
+        predLoad(getFittedModel(allModels[[mod]]), newdata=siteQ, by='water year', allow.incomplete=TRUE) %>%
+          mutate(
+            Water_Year = ordered(substring(Period, 4)),
+            Flux_Rate = Flux * conv.load.rate,
+            SE = SEP * conv.load.rate,
+            n = Ndays,
+            CI_lower = L95 * conv.load.rate,
+            CI_upper = U95 * conv.load.rate,
+            model = mod
+          ) %>%
+          select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+      } else {
+        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
+          mutate(
+            SE = NA,
+            CI_lower = NA,
+            CI_upper = NA,
+            model=mod)
+      }
     })) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
@@ -231,16 +251,32 @@ for(constitName in constits) {
       file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
       row.names=FALSE)
     
-    # Predict the multi-year average flux
+    # Predict the multi-year average flux, complete years only
+    completeWaterYears <- annualSummary %>% filter(n >= inputs$minDaysPerYear) %>% .$Water_Year
+    completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
+      filter(Water_Year %in% completeWaterYears)
     multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
-      preds <- predsLoad[[mod]]
-      mutate(aggregateSolute(preds, siteMeta, agg.by="mean water year", format='flux rate'), model=mod)
+      (if(is(allModels[[mod]], 'loadReg2')) {
+        predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
+          mutate(
+            Flux_Rate = Flux * conv.load.rate,
+            SE = SEP * conv.load.rate,
+            CI_lower = L95 * conv.load.rate,
+            CI_upper = U95 * conv.load.rate
+          ) %>%
+          select(Flux_Rate, SE, CI_lower, CI_upper)
+      } else {
+        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="mean water year", 
+                        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
+      }) %>%
+        mutate(model=mod)
     })) %>%
+      mutate(years.record = unique(na.omit(years.record)), years.complete = unique(na.omit(years.complete))) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
     multiYearSummary <- reshape(
-      multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
-      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper",'years.record','years.complete'), timevar = "model")
+      multiYearSummary, idvar = c('site.id','constituent','years.record','years.complete'), direction = "wide", 
+      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
     multiYearSummary <- setNames(
       multiYearSummary, 
       sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(multiYearSummary)))
