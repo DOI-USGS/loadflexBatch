@@ -251,7 +251,10 @@ for(constitName in constits) {
       file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
       row.names=FALSE)
     
-    # Predict the multi-year average flux
+    # Predict the multi-year average flux, complete years only
+    completeWaterYears <- annualSummary %>% filter(n >= inputs$minDaysPerYear) %>% .$Water_Year
+    completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
+      filter(Water_Year %in% completeWaterYears)
     multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
       (if(is(allModels[[mod]], 'loadReg2')) {
         predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
@@ -268,11 +271,12 @@ for(constitName in constits) {
       }) %>%
         mutate(model=mod)
     })) %>%
+      mutate(years.record = unique(na.omit(years.record)), years.complete = unique(na.omit(years.complete))) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
     multiYearSummary <- reshape(
-      multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
-      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper",'years.record','years.complete'), timevar = "model")
+      multiYearSummary, idvar = c('site.id','constituent','years.record','years.complete'), direction = "wide", 
+      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
     multiYearSummary <- setNames(
       multiYearSummary, 
       sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(multiYearSummary)))

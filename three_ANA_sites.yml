@@ -9,6 +9,9 @@ discharge: "Q" # name of the folder inside inputFolder containing daily discharg
 date: "date" # column name for dates within the constituent and discharge data files
 siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing site and constituent metadata
 
+# analysis specifications
+minDaysPerYear: 345 # number of days required for a year to be included in the multi-year average
+
 # desired units for output
 loadUnits: "kg"
 loadRateUnits: "kg/yr"
