@@ -164,7 +164,7 @@ for(constitName in constits) {
       pred.format = 'conc')
     comp <- loadComp(
       reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
-      interp.data = siteConstit)
+      interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
     # Create list of all model objects
     allModels <- list(CMP=comp, INT=interpRect, REG=rloadest5param)
@@ -196,27 +196,47 @@ for(constitName in constits) {
       file = file.path(inputs$outputFolder, constitName, "modelMetrics", paste0(matchingSite, ".csv")),
       row.names = FALSE)
     
-    # Make predictions
-    predsLoad <- lapply(allModels, predictSolute, "flux", siteQ, se.pred = TRUE, date = TRUE)
-    
-    # Convert prediction units if needed
+    # Prepare to convert prediction units if needed
     model.load.rate.units <- getInfo(siteMeta, 'load.rate.units')
     input.load.rate.units <- loadflex:::translateFreeformToUnitted(inputs$loadRateUnits)
-    if(model.load.rate.units != input.load.rate.units) {
-      conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
-      predsLoad <- lapply(predsLoad, function(loads) {
+    conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
+    
+    # Make predictions
+    predsLoad <- lapply(allModels, function(mod) {
+      (if(is(mod, 'loadComp')) {
+        suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
+          mutate(se.pred=NA)
+      } else {
+        predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
+      }) %>%
         mutate(
-          loads,
           fit = fit * conv.load.rate,
           se.pred = se.pred * conv.load.rate
         )
-      })
-    }
+    })
     
     # Predict annual fluxes
     annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
-      preds <- predsLoad[[mod]]
-      mutate(aggregateSolute(preds, siteMeta, agg.by="water year", format='flux rate'), model=mod)
+      if(is(allModels[[mod]], 'loadReg2')) {
+        predLoad(getFittedModel(allModels[[mod]]), newdata=siteQ, by='water year', allow.incomplete=TRUE) %>%
+          mutate(
+            Water_Year = ordered(substring(Period, 4)),
+            Flux_Rate = Flux * conv.load.rate,
+            SE = SEP * conv.load.rate,
+            n = Ndays,
+            CI_lower = L95 * conv.load.rate,
+            CI_upper = U95 * conv.load.rate,
+            model = mod
+          ) %>%
+          select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+      } else {
+        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
+          mutate(
+            SE = NA,
+            CI_lower = NA,
+            CI_upper = NA,
+            model=mod)
+      }
     })) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
@@ -233,8 +253,20 @@ for(constitName in constits) {
     
     # Predict the multi-year average flux
     multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
-      preds <- predsLoad[[mod]]
-      mutate(aggregateSolute(preds, siteMeta, agg.by="mean water year", format='flux rate'), model=mod)
+      (if(is(allModels[[mod]], 'loadReg2')) {
+        predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
+          mutate(
+            Flux_Rate = Flux * conv.load.rate,
+            SE = SEP * conv.load.rate,
+            CI_lower = L95 * conv.load.rate,
+            CI_upper = U95 * conv.load.rate
+          ) %>%
+          select(Flux_Rate, SE, CI_lower, CI_upper)
+      } else {
+        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="mean water year", 
+                        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
+      }) %>%
+        mutate(model=mod)
     })) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
