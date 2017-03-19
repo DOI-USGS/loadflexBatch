@@ -141,7 +141,9 @@ writePDFreport <- function(loadModels, estdat, siteMeta) {
     stringsAsFactors = FALSE)
   
   # page 1: input data with censoring
-  plotEGRET("multiPlotDataOverview", meta = siteMeta, data=getFittingData(loadModels$REG), newdata = estdat)
+  eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
+    convertToEGRET(meta = siteMeta, data=getFittingData(loadModels$REG), newdata = estdat))
+  plotEGRET("multiPlotDataOverview", eList=eList)
   title(main="Input Data", line=-1, adj=0, outer=TRUE)
   title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
   
