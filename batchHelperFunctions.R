@@ -12,7 +12,7 @@ combineSpecs <- function(inputs) {
   flow <- inputs$discharge
   constitsSiteinfo <- setdiff(obsVars, flow)
   constitsInputs <- inputs$constituents
-  constitsFinal <- union(constitsSiteinfo, constitsInputs)
+  constitsFinal <- intersect(constitsSiteinfo, constitsInputs)
   
   # flag the flow rows
   siteInfo <- mutate(siteInfo, is.flow = constituent == flow)
@@ -29,7 +29,7 @@ combineSpecs <- function(inputs) {
   if(length(siOnly <- setdiff(constitsSiteinfo, constitsInputs)) > 0) {
     message('subsetting siteInfo to only those constituents named in inputs yaml\n',
             '  removing: ', paste0(siOnly, collapse=', ', '\n'),
-            '  keeping: ', paste0(si.and.inp, collapse=', '))
+            '  keeping: ', paste0(constitsFinal, collapse=', '))
     siteInfo <- filter(siteInfo, is.flow | constituent %in% constitsFinal)
   }
   
