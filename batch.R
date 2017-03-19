@@ -167,7 +167,7 @@ for(constitName in constits) {
       interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
     # Create list of all model objects
-    allModels <- list(CMP=comp, INT=interpRect, REG=rloadest5param)
+    allModels <- list(REG=rloadest5param, CMP=comp, INT=interpRect)
     
     
     #### Create output data files ####

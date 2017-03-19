@@ -150,17 +150,37 @@ writePDFreport <- function(loadModels, estdat, siteMeta) {
     loadModel@metadata <- siteMeta
     modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
     modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
+    eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
+      convertToEGRET(load.model=loadModel, newdata=estdat))
     
     # pages 2,4,6
     par(mfrow=c(2,1), oma=c(0,0,1,0))
-    plotEGRET("plotConcTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
+    plotEGRET("plotConcTimeDaily", eList=eList, mgp = c(4,1,0))
     title(main=paste0("Predictions"), line=0, adj=0, outer=TRUE)
     title(main=sprintf("%s-%s-1", siteMeta@site.id, modelShort), line=0, adj=1, outer=TRUE)
-    plotEGRET("plotFluxTimeDaily", load.model=loadModel, newdata=estdat, mgp = c(4,1,0))
+    plotEGRET("plotFluxTimeDaily", eList=eList, mgp = c(4,1,0))
     
     # pages 3,5,7
-    plotEGRET("fluxBiasMulti", load.model=loadModel, newdata=estdat, moreTitle = paste0(modelLong, '; '))
-    title(main=paste0("Diagnostics"), line=-1, adj=0, outer=TRUE)
-    title(main=sprintf("%s-%s-2", siteMeta@site.id, modelShort), line=-1, adj=1, outer=TRUE)
+    if(is(loadModel, 'loadReg2')) {
+      plotEGRET("fluxBiasMulti", eList=eList, moreTitle = paste0(modelLong, '; '))
+      headerLine <- -1
+    } else {
+      par(oma=c(0,0,1,0))
+      layout(matrix(c(0,0,0,0, 0,1,2,0, 0,3,4,0, 0,0,0,0), nrow=4, ncol=4, byrow=TRUE), widths=c(0.15,0.3,0.3,0.15))
+      plotEGRET("boxConcThree", eList=eList, printTitle = FALSE, tinyPlot = TRUE)
+      plotEGRET("plotConcPred", eList=eList, printTitle = FALSE, tinyPlot = TRUE, randomCensored = FALSE)
+      plotEGRET("boxQTwice", eList=eList, printTitle = FALSE, tinyPlot = TRUE)
+      plotEGRET("plotFluxPred", eList=eList, printTitle = FALSE, tinyPlot = TRUE, randomCensored = FALSE)
+      fluxBias <- as.numeric(EGRET::fluxBiasStat(eList$Sample)[3])
+      title <- paste(
+        eList$INFO$shortName, ", ", eList$INFO$paramShortName, 
+        "\nModel is ", modelLong, "; Flux Bias Statistic = ", format(fluxBias, digits=3), 
+        sep = "")
+      par(cex=1, cex.main=1.2)
+      mtext(title, outer = TRUE, line = -18, font = 1.8)
+      headerLine <- -0.5
+    }
+    title(main=paste0("Diagnostics"), line=headerLine, adj=0, outer=TRUE, cex=1)
+    title(main=sprintf("%s-%s-2", siteMeta@site.id, modelShort), line=headerLine, adj=1, outer=TRUE, cex=1)
   }
 }
