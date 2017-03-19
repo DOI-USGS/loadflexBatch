@@ -178,7 +178,7 @@ for(constitName in constits) {
     # simpler in place for loadflex, at which point we'll add that to
     # summarizeInputs.
     inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
-    inputMetrics$fitdat.num.censored <- length(which(!is.na(siteConstit[[qwconstitColName]]@.Data[,'detlim'])))
+    inputMetrics$fitdat.num.censored <- length(which(siteConstit[['status']] == 2))
     inputMetrics$estdat.num.censored <- NULL # assuming no censoring in Q
     write.csv(
       x = inputMetrics,
