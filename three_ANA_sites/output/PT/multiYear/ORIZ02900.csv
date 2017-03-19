@@ -1,2 +1,2 @@
-"site.id","constituent","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","CMP.years.record","CMP.years.complete","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","INT.years.record","INT.years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","REG.years.record","REG.years.complete"
-"ORIZ02900","PT",31384.1821532864,823.48771515716,29770.1758898672,32998.1884167056,15,15,33889.9808800933,615.68883839129,32683.2529311631,35096.7088290235,15,15,32918.8728643799,451.233878532277,32034.4707138523,33803.2750149075,15,15
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
+"ORIZ02900","PT",15,13,33487.2544211576,3507.92729358528,27138.4072785531,40872.8563809923,30213.0805844057,NA,NA,NA,32433.0713408088,NA,NA,NA

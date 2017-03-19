@@ -1,2 +1,2 @@
-"site.id","constituent","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","CMP.years.record","CMP.years.complete","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","INT.years.record","INT.years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","REG.years.record","REG.years.complete"
-"MOGU02900","PT",501002.869435372,16303.1837807879,469049.21639169,532956.522479054,15,15,480535.281308326,6105.89546445051,468567.946104637,492502.616512016,15,15,552348.900959063,8868.33225711929,534967.289132174,569730.512785952,15,15
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
+"MOGU02900","PT",15,13,589822.517322887,67921.0855676034,467908.971421639,733770.292278287,522815.012169658,NA,NA,NA,503176.183724627,NA,NA,NA
