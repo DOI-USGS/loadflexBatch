@@ -54,13 +54,17 @@ The default file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch
 
     # input file information
     inputFolder: "three_ANA_sites/input" # folder containing all input files and subfolders
-    constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data
-    dischargeFolder: "Q" # name of the folder inside inputFolder containing daily discharge data
+    constituents: ["NO3", "PT"] # names of folders inside inputFolder containing constituent data, and the column names for constituents within those data files
+    discharge: "Q" # name of the folder inside inputFolder containing daily discharge data, and the column name for discharge within those data files
+    date: "date" # column name for dates within the constituent and discharge data files
     siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing site and constituent metadata
+
+    # analysis specifications
+    minDaysPerYear: 345 # number of days required for a year to be included in the multi-year average
 
     # desired units for output
     loadUnits: "kg"
-    loadRateUnits: "kg/d"
+    loadRateUnits: "kg/yr"
 
     # output folder where results files and subfolders will be written
     outputFolder: "three_ANA_sites/output"
@@ -69,16 +73,26 @@ The `constituents` named in the user inputs file need to match the names of the 
 
 The file named by `siteInfo` should be a comma-separated (.csv) file inside `inputFolder`. This file contains a table of metadata for individual water quality and discharge sites. Look at the example file (`three_ANA_sites/input/siteInfo.csv`) for reference on the required column names and format:
 
-    ##   matching.site   site.id site.name lat lon basin.area constituent   units
-    ## 1     RONC02800 RONC02800      Ronc   1   1        100         NO3 mg L^-1
-    ## 2     RONC02800 RONC02800      Ronc   1   1        100          PT mg L^-1
-    ## 3     RONC02800 RONC02800      Ronc   1   1        100           Q     cms
-    ## 4     MOGU02900 MOGU02900      Mogu   2   2        200         NO3 mg L^-1
-    ## 5     MOGU02900 MOGU02900      Mogu   2   2        200          PT mg L^-1
-    ## 6     MOGU02900 MOGU02900      Mogu   2   2        250           Q     cms
-    ## 7     ORIZ02900 ORIZ02900      Oriz   3   3        300         NO3 mg L^-1
-    ## 8     ORIZ02900 ORIZ02900      Oriz   3   3        300          PT mg L^-1
-    ## 9     ORIZ02900 ORIZ02900      Oriz   3   3        300           Q     cms
+    ##   matching.site   site.id site.name    lat    lon basin.area constituent
+    ## 1     RONC02800 RONC02800      Ronc -20.25 -48.43        100         NO3
+    ## 2     RONC02800 RONC02800      Ronc -20.25 -48.43        100          PT
+    ## 3     RONC02800 RONC02800      Ronc -20.25 -48.43        100           Q
+    ## 4     MOGU02900 MOGU02900      Mogu -20.15 -48.63        200         NO3
+    ## 5     MOGU02900 MOGU02900      Mogu -20.15 -48.63        200          PT
+    ## 6     MOGU02900 MOGU02900      Mogu -20.15 -48.63        200           Q
+    ## 7     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        300         NO3
+    ## 8     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        300          PT
+    ## 9     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        350           Q
+    ##     units
+    ## 1 mg L^-1
+    ## 2 mg L^-1
+    ## 3     cms
+    ## 4 mg L^-1
+    ## 5 mg L^-1
+    ## 6     cms
+    ## 7 mg L^-1
+    ## 8 mg L^-1
+    ## 9     cms
 
 For each row of the `siteInfo` file, the value in the `constituent` column should match both (1) a folder name given as a `constituent` or `dischargeFolder` in the user inputs file, and (2) an actual folder within the `inputFolder`. And then within each of those folders, there should be a separate data file (.csv format) for each site, with a file name equal to the names given in the `site.id` column of the `siteInfo` file.
 
@@ -113,9 +127,9 @@ head(read.csv('three_ANA_sites/input/NO3/MOGU02900.csv'), 5)
     ##         date         Q  NO3 CODIGO_ESTACAO status
     ## 1 2001-02-06 285.00034 0.27      MOGU02900      1
     ## 2 2001-04-03 305.36021 0.28      MOGU02900      1
-    ## 3 2001-06-20 115.44747 0.47      MOGU02900      2
+    ## 3 2001-06-20 115.44747 0.47      MOGU02900      1
     ## 4 2001-08-07  82.08674 0.58      MOGU02900      1
-    ## 5 2001-10-02 104.30206 0.58      MOGU02900      2
+    ## 5 2001-10-02 104.30206 0.58      MOGU02900      1
 
 And here is how the input discharge data should be formatted, with columns for date of the observation (`date`) and mean daily discharge (`Q`), plus optional additional columns that will be ignored by `batch.R`. Whereas the constituent data file only has rows for those dates on which concentration was measured, the discharge data file has rows for every date on which flux is to be estimated.
 
@@ -170,9 +184,9 @@ Additionally, there are four folders containing individual .csv files for each s
 Conventions to remember
 -----------------------
 
--   Column names and metadata slots for site information are assumed to refer to the water quality site, unless the name specifies they refer to discharge.
+-   Column names for site information (e.g., in the inputs summary) are assumed to refer to the water quality site, unless the name explicitly indicates that they refer to the flow site.
 
--   IDs for constituents, discharge, and sites need to be consistent across the user inputs file, the `siteInfo` file, and the folder and file names in the `siteInputs` folder.
+-   IDs for constituents, discharge, and sites need to be consistent across the user inputs file, the `siteInfo` file, column names within the files, and the folder and file names in the `siteInputs` folder.
 
 What's next?
 ------------
