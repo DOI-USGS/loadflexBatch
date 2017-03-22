@@ -130,7 +130,7 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics
 #' @param loadModels a list of load models
 #' @param estdata data.frame of estimation data (dates and discharges)
 #' @param siteMeta loadflex metadata object
-writePDFreport <- function(loadModels, estdat, siteMeta) {
+writePDFreport <- function(loadModels, estdat, siteMeta, loadflexVersion, batchStartTime) {
   
   # make plots. the first page is redundant across models
   modelNames <- data.frame(
@@ -146,6 +146,8 @@ writePDFreport <- function(loadModels, estdat, siteMeta) {
   plotEGRET("multiPlotDataOverview", eList=eList)
   title(main="Input Data", line=-1, adj=0, outer=TRUE)
   title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
+  mtext(text=sprintf('loadflex version %s', loadflexVersion), side=1, line=-1, adj=0, outer=TRUE, font=3)
+  mtext(text=sprintf('run at %s', batchStartTime), side=1, line=-1, adj=1, outer=TRUE, font=3)
   
   for(m in 1:length(loadModels)) {
     loadModel <- loadModels[[m]]

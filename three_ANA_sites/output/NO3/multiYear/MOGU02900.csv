@@ -1,2 +1,2 @@
-"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
-"MOGU02900","NO3",15,13,2743152.79608045,220074.367946885,2337092.57977722,3199173.33862311,2543276.44714789,NA,NA,NA,2621925.02631173,NA,NA,NA
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","loadflex.version","run.date"
+"MOGU02900","NO3",15,13,3427833.81788337,274427.022249975,2921420.84914189,3996416.3710011,3179095.55893486,NA,NA,NA,3277406.28288966,NA,NA,NA,"1.1.9","2017-03-22 14:31:59"
