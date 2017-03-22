@@ -33,6 +33,9 @@ sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 # Loop over each constituent, creating a pdf of all sites and models for that 
 # constituent (plus many smaller, site- and model-specific files)
+loadflexVersion <- as.character(packageVersion('loadflex'))
+batchStartTime <- Sys.time() # for GitHub repo use "2017-03-22 14:31:59"
+message('running loadflex version ', loadflexVersion, ' in batch mode at ', batchStartTime)
 for(constitName in constits) {
   
   # Start this constituent's pdf file
@@ -153,7 +156,7 @@ for(constitName in constits) {
       data = siteConstit, metadata = siteMeta)
     
     # Fit the composite model (with rloadest model that doesn't do censoring)
-    rloadest5forComp <- loadReg2( # only difference is the data (non-censored)
+    rloadest5nocens <- loadReg2( # only difference is the data (non-censored)
       loadReg(
         loadRegFormula, data = siteConstit, 
         flow = qColName, dates = dateColName, time.step = "day",
@@ -163,11 +166,11 @@ for(constitName in constits) {
       site.id = getInfo(siteMeta, 'site.id'),
       pred.format = 'conc')
     comp <- loadComp(
-      reg.model = rloadest5forComp, interp.format = "conc", interp.function = rectangularInterpolation, 
+      reg.model = rloadest5nocens, interp.format = "conc", interp.function = rectangularInterpolation, 
       interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
     # Create list of all model objects
-    allModels <- list(REG=rloadest5param, CMP=comp, INT=interpRect)
+    allModels <- list(REG=rloadest5param, CMP=comp, INT=interpRect) #, REGU=rloadest5nocens
     
     
     #### Create output data files ####
@@ -180,6 +183,10 @@ for(constitName in constits) {
     inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
     inputMetrics$fitdat.num.censored <- length(which(siteConstit[['status']] == 2))
     inputMetrics$estdat.num.censored <- NULL # assuming no censoring in Q
+    inputMetrics <- inputMetrics %>%
+      mutate(
+        loadflex.version = loadflexVersion, 
+        run.date = batchStartTime)
     write.csv(
       x = inputMetrics,
       file = file.path(inputs$outputFolder, constitName, "inputs", paste0(matchingSite, '.csv')),
@@ -187,10 +194,20 @@ for(constitName in constits) {
     
     # Summarize each model
     metrics <- bind_cols(
-      data.frame(summarizeModel(rloadest5param)[1:2]), # site/constit info
-      data.frame(REG=summarizeModel(rloadest5param)[-(1:2)]),
-      data.frame(INT=summarizeModel(interpRect, irregular.timesteps.ok=TRUE)[-(1:2)]),
-      data.frame(CMP=summarizeModel(comp, newdata=siteQ, irregular.timesteps.ok=TRUE)[-(1:2)]))
+      data.frame(summarizeModel(allModels[[1]])[1:2]), # site.id and constituent columns just once
+      lapply(names(allModels), function(mod) { # model-specific columns
+        modSum <- switch( 
+          class(allModels[[mod]]), # slightly different call for each model type
+          loadReg2 = summarizeModel(allModels[[mod]]),
+          loadComp = summarizeModel(allModels[[mod]], newdata=siteQ, irregular.timesteps.ok=TRUE),
+          loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE)
+        )
+        modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
+          setNames(paste0(mod, '.', names(.))) # add the "REG.", "CMP.", etc. prefix
+      })) %>%
+      mutate(
+        loadflex.version = loadflexVersion, 
+        run.date = batchStartTime)
     write.csv(
       x = metrics, 
       file = file.path(inputs$outputFolder, constitName, "modelMetrics", paste0(matchingSite, ".csv")),
@@ -230,7 +247,8 @@ for(constitName in constits) {
           ) %>%
           select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
       } else {
-        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
+        suppressWarnings(aggregateSolute(
+          predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
           mutate(
             SE = NA,
             CI_lower = NA,
@@ -243,9 +261,14 @@ for(constitName in constits) {
     annualSummary <- reshape(
       annualSummary, idvar = c('site.id','constituent',"Water_Year"), direction = "wide", 
       v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
-    annualSummary <- setNames(
+    annualSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
       annualSummary, 
-      sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(annualSummary)))
+      sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
+          replacement='\\2.\\1', names(annualSummary)))
+    annualSummary <- annualSummary %>%
+      mutate(
+        loadflex.version = loadflexVersion, 
+        run.date = batchStartTime)
     write.csv(
       x = annualSummary, 
       file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
@@ -266,8 +289,9 @@ for(constitName in constits) {
           ) %>%
           select(Flux_Rate, SE, CI_lower, CI_upper)
       } else {
-        aggregateSolute(predsLoad[[mod]], siteMeta, agg.by="mean water year", 
-                        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
+        suppressWarnings(aggregateSolute(
+          predsLoad[[mod]], siteMeta, agg.by="mean water year", 
+          format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE))
       }) %>%
         mutate(model=mod)
     })) %>%
@@ -277,9 +301,14 @@ for(constitName in constits) {
     multiYearSummary <- reshape(
       multiYearSummary, idvar = c('site.id','constituent','years.record','years.complete'), direction = "wide", 
       v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
-    multiYearSummary <- setNames(
+    multiYearSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
       multiYearSummary, 
-      sub(pattern='(.*)\\.(REG|INT|CMP)', replacement='\\2.\\1', names(multiYearSummary)))
+      sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
+          replacement='\\2.\\1', names(multiYearSummary)))
+    multiYearSummary <- multiYearSummary %>%
+      mutate(
+        loadflex.version = loadflexVersion, 
+        run.date = batchStartTime)
     write.csv(
       x = multiYearSummary, 
       file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
@@ -288,7 +317,8 @@ for(constitName in constits) {
     #### Create plots  ####
     
     # Add plots to the pdf we have open already
-    writePDFreport(loadModels = allModels, estdat = siteQ, siteMeta = siteMeta)
+    writePDFreport(loadModels = allModels, estdat = siteQ, siteMeta = siteMeta,
+                   loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
   }
   
   # Close this constituent's pdf file

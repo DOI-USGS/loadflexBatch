@@ -1,2 +1,2 @@
-"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
-"RONC02800","NO3",15,13,53348.0105707996,16230.9885477934,28485.5102983158,91445.9768029783,71125.8892674103,NA,NA,NA,72262.7057629979,NA,NA,NA
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","loadflex.version","run.date"
+"RONC02800","NO3",15,13,53348.0105707996,16230.9885477934,28485.5102983158,91445.9768029783,71125.8892674103,NA,NA,NA,72262.7057629979,NA,NA,NA,"1.1.9","2017-03-22 14:31:59"

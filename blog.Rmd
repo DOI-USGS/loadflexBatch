@@ -141,9 +141,9 @@ Additionally, there are four folders containing individual .csv files for each s
 
 ## Conventions to remember
 
-* Column names and metadata slots for site information are assumed to refer to the water quality site, unless the name specifies they refer to discharge.
+* Column names for site information (e.g., in the inputs summary) are assumed to refer to the water quality site, unless the name explicitly indicates that they refer to the flow site.
 
-* IDs for constituents, discharge, and sites need to be consistent across the user inputs file, the `siteInfo` file, and the folder and file names in the `siteInputs` folder.
+* IDs for constituents, discharge, and sites need to be consistent across the user inputs file, the `siteInfo` file, column names within the files, and the folder and file names in the `siteInputs` folder.
 
 ## What's next?
 

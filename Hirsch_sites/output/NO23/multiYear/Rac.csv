@@ -1,2 +1,2 @@
-"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper"
-"Rac","NO23",10,10,45694799.8193542,6384583.91902849,34459483.6610859,59433054.4161053,20837585.5193661,NA,NA,NA,19156615.5238087,NA,NA,NA
+"site.id","constituent","years.record","years.complete","REG.Flux_Rate","REG.SE","REG.CI_lower","REG.CI_upper","CMP.Flux_Rate","CMP.SE","CMP.CI_lower","CMP.CI_upper","INT.Flux_Rate","INT.SE","INT.CI_lower","INT.CI_upper","loadflex.version","run.date"
+"Rac","NO23",10,10,45694799.8193542,6384583.91902849,34459483.6610859,59433054.4161053,20837585.5193661,NA,NA,NA,19156615.5238087,NA,NA,NA,"1.1.9","2017-03-22 14:31:59"
