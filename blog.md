@@ -12,19 +12,31 @@ First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USG
 list.files()
 ```
 
-    ##  [1] "batch.R"                "batchHelperFunctions.R"
-    ##  [3] "blog.md"                "blog.pdf"              
-    ##  [5] "blog.Rmd"               "Hirsch_sites"          
-    ##  [7] "Hirsch_sites.yml"       "loadflexBatch.Rproj"   
-    ##  [9] "README.md"              "three_ANA_sites"       
-    ## [11] "three_ANA_sites.yml"
+    ##  [1] "batch.R"                            
+    ##  [2] "batchHelperFunctions.R"             
+    ##  [3] "beales_batch.html"                  
+    ##  [4] "beales_batch.pdf"                   
+    ##  [5] "beales_batch.Rmd"                   
+    ##  [6] "blog.md"                            
+    ##  [7] "blog.Rmd"                           
+    ##  [8] "Hirsch_sites"                       
+    ##  [9] "Hirsch_sites.yml"                   
+    ## [10] "loadflex batch mode description.pdf"
+    ## [11] "loadflexBatch.Rproj"                
+    ## [12] "README.md"                          
+    ## [13] "three_ANA_sites"                    
+    ## [14] "three_ANA_sites.yml"
 
 Next, we need to install the packages that the script depends on. In your console, run
 
 ``` r
 install.packages(
-  c('dplyr', 'rloadest', 'devtools', 'yaml'), 
-  repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+  c("devtools", "car", "dplyr", "ggplot2", "lubridate", "MASS", "Matrix", "yaml"),
+  dependencies=TRUE, type="both")
+install.packages(
+  c("smwrData", "smwrBase", "smwrGraphs", "smwrStats", "smwrQW", "rloadest", "unitted"), 
+  repos=c("https://owi.usgs.gov/R", "https://cran.rstudio.com"), 
+  dependencies=TRUE, type="both")
 ```
 
 We will also install the main `loadflex` package directly from Github to ensure we have the very latest version:

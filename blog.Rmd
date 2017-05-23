@@ -37,8 +37,12 @@ list.files()
 Next, we need to install the packages that the script depends on.  In your console, run 
 ```{r eval = FALSE}
 install.packages(
-  c('dplyr', 'rloadest', 'devtools', 'yaml'), 
-  repos = c('https://owi.usgs.gov/R', 'https://cloud.r-project.org'))
+  c("devtools", "car", "dplyr", "ggplot2", "lubridate", "MASS", "Matrix", "yaml"),
+  dependencies=TRUE, type="both")
+install.packages(
+  c("smwrData", "smwrBase", "smwrGraphs", "smwrStats", "smwrQW", "rloadest", "unitted"), 
+  repos=c("https://owi.usgs.gov/R", "https://cran.rstudio.com"), 
+  dependencies=TRUE, type="both")
 ```
 
 We will also install the main `loadflex` package directly from Github to ensure we have the very latest version:
