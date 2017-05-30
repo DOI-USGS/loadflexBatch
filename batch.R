@@ -383,4 +383,4 @@ allAnnual <- summarizeCsvs('annual', siteFileSets, inputs$outputFolder)
 allMultiYear <- summarizeCsvs('multiYear', siteFileSets, inputs$outputFolder) 
 allModelMetrics <- summarizeCsvs('modelMetrics', siteFileSets, inputs$outputFolder)
 # summarizePlots(siteFileSets, inputs$outputFolder) # doesn't work on my computer
-message("use Adobe or equivalent to combine pdfs")
+message("use Adobe or equivalent to combine pdfs into CONST_plots.pdf")
