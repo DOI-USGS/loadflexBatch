@@ -200,3 +200,5 @@ data(lamprey_nitrate)
 # Type loadflex-package in the search box in the top right and press Enter.
 
 # We will use other functions from loadflex in the next few hours.
+
+install.packages(c('EGRET','loadflex'), repos=union('https://owi.usgs.gov/R', options()$repos))
