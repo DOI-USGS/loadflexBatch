@@ -47,7 +47,7 @@ for(constitName in constits) { # constitName='NO3'
   
   # Loop over sites having this constituent
   constSites <- filter(siteFileSets, constituent.CONC == constitName)
-  for(siteName in constSites$matching.site[-(1:22)]) { # siteName=constSites$matching.site[2]
+  for(siteName in constSites$matching.site) { # siteName=constSites$matching.site[2]
     
     # Plan for and announce this iteration
     constitSiteInfo <- filter(constSites, matching.site == siteName)
@@ -60,6 +60,10 @@ for(constitName in constits) { # constitName='NO3'
     # Read in appropriate files
     siteQ <- read.csv(constitSiteInfo$filepath.FLOW, stringsAsFactors = FALSE)
     siteConstit <- read.csv(constitSiteInfo$filepath.CONC, stringsAsFactors = FALSE)
+    if(nrow(siteConstit) == 0) {
+      message("empty table at ", constitSiteInfo$filepath.CONC)
+      next
+    }
     
     # Identify and require column names as given in site info
     constitColName <- constitSiteInfo$constituent.CONC
@@ -378,4 +382,5 @@ allInputs <- summarizeCsvs('inputs', siteFileSets, inputs$outputFolder)
 allAnnual <- summarizeCsvs('annual', siteFileSets, inputs$outputFolder) 
 allMultiYear <- summarizeCsvs('multiYear', siteFileSets, inputs$outputFolder) 
 allModelMetrics <- summarizeCsvs('modelMetrics', siteFileSets, inputs$outputFolder)
-summarizePlots(siteFileSets, inputs$outputFolder)
+# summarizePlots(siteFileSets, inputs$outputFolder) # doesn't work on my computer
+message("use Adobe or equivalent to combine pdfs")
