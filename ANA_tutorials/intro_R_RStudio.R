@@ -1,7 +1,7 @@
 #### Exploring RStudio ####
 
-# RStudio is an Independent Development Environment (IDE). It helps you write R
-# code, run R code, and see the results of the code you run. There are 10
+# RStudio is an Integrated Development Environment (IDE). It helps you write R 
+# code, run R code, and see the results of the code you run. There are 10 
 # RStudio panes that help with these tasks: Script Editor, Console, Environment,
 # History, Files, Plots, Packages, Help, and Viewer. They are laid out so you 
 # can see many related panes at once.
