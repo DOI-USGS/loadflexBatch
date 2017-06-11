@@ -1,16 +1,14 @@
 #' @title predict_ratio
 #' @description Stratified Beale ratio estimator adapted from predict_ratio 
 #'   module in FLUXMASTER. Requires functions mod, altmod, nsamp, and 
-#'   collapse_stratbins.
-#' @param siteQ data.frame containing date, Q, stationIdname (other columns can 
-#'   exist)
-#' @param siteConstit data.frame containing date, constitName, stationIdname, 
-#'   status (other columns can exist)
+#'   collapse_stratbins. Input dataset should include data from exactly one 
+#'   site.
+#' @param siteQ data.frame containing date, Q, (other columns can exist)
+#' @param siteConstit data.frame containing date, constitName, status (other
+#'   columns can exist)
 #' @param minDaysPerYear minumim number of days indicating the year is full
 #' @param waterYear TRUE or FALSE
 #' @param constitName character indicating name of column with WQ data
-#' @param stationIdname character indicating name of column with station 
-#'   identification data
 #' @param hi_flow_percentile number indicating threshold for designating 
 #'   high-flow observations
 #' @param ratio_strata_nsamp_threshold number indicating minimum number of 
@@ -23,29 +21,30 @@
 #' @import smwrBase for seasons()
 #' @return data.frame with station, Beale avg flux (kg/y), SE Beale avg flux 
 #'   (kg/y), number of strata for Beale avg flux
-predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,stationIdname,
+predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,#stationIdname,
                         hi_flow_percentile,ratio_strata_nsamp_threshold,concTrans, qTrans){
   
-  for (site_id in eval(parse(text=paste("unique(siteQ$",stationIdname,")",sep="")))){ #loop through stations
+  # no loop because looping is handled by loadflexBatch
+  # for (site_id in eval(parse(text=paste("unique(siteQ$",stationIdname,")",sep="")))){ #loop through stations
     #get data
-    ratio_predict<-eval(parse(text=paste("siteQ[which(siteQ$",stationIdname,"==site_id),]",sep="")))
-    ratio_sample<-eval(parse(text=paste("siteConstit[which(siteConstit$",stationIdname,"==site_id),]",sep="")))
+    ratio_predict<-siteQ #eval(parse(text=paste("siteQ[which(siteQ$",stationIdname,"==site_id),]",sep="")))
+    # ratio_sample<-siteConstit #eval(parse(text=paste("siteConstit[which(siteConstit$",stationIdname,"==site_id),]",sep=""))) # ratio_sample is never used
     
-    #merge data
-    ratio_predict<-merge(siteQ,siteConstit[,which(names(siteConstit)!="Q")],by=c("date",stationIdname),all=TRUE)
+    #merge data so that ratio_predict includes conc observations on dates when those are available
+    ratio_predict<-merge(siteQ,siteConstit[,which(names(siteConstit)!="Q")],by="date",all=TRUE)
     ratio_predict<-ratio_predict[order(ratio_predict$date),]
     ratio_predict$constit<-eval(parse(text=paste("ratio_predict$",constitName,sep="")))
     
     #get transformation factors
-    qTrans<-ifelse(is.na(qTrans),1,qTrans)
-    concTrans<-ifelse(is.na(concTrans),1,concTrans)
+    qTrans<-ifelse(is.na(qTrans),1,qTrans) # why not just make the default be 1 in the function formals?
+    concTrans<-ifelse(is.na(concTrans),1,concTrans) # why not just make the default be 1 in the function formals?
     
     #set variables
-    date<-ratio_predict$date
+    # date<-ratio_predict$date # should be able to use ratio_predict$date throughout
     ifsamp<-ifelse(!is.na(ratio_predict$constit),1,0)
     dload<-ratio_predict$constit*concTrans*ratio_predict$Q*qTrans*2.4465024  #kg/day, if goal is to have Q in m3/s change 2.44 to 86.40 and qTrans takes Q into m3/s
     dflow<-ratio_predict$Q
-    season<-as.numeric(smwrBase::seasons(date,breaks= c("February","May","August","November"),Names=c(1,2,3,4)))
+    season<-as.numeric(smwrBase::seasons(ratio_predict$date,breaks= c("February","May","August","November"),Names=c(1,2,3,4)))
     
     #find high flow percentile
     dflow_hi<-as.numeric(quantile(dflow,probs=hi_flow_percentile/100))
@@ -58,17 +57,15 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
     }else{
       ratio_predict$year<-ifelse(lubridate::month(ratio_predict$date)<10,lubridate::year(ratio_predict$date),lubridate::year(ratio_predict$date)+1)
     }
-    
     existQ<-ratio_predict[which(!is.na(ratio_predict$Q)),]
     existQ<-aggregate(existQ[c("date")],by=list(year = existQ$year),length)
     names(existQ)[2]<-"countDays"
     ratio_predict<-merge(ratio_predict,existQ,all.x=TRUE,by="year")
     if_avpredict<-ifelse(ratio_predict$countDays>=minDaysPerYear,1,0)
     
-    
-    #predict_ratio started at line 184
+    #predict_ratio started at line 184 (of original SAS code?)
     locsamp <- which(ifsamp!=0)  # Note, assumed locsamp = 1 is contained in locmon = 1 which is contained in locpred = 1. */
-    ndates <- length(date) 
+    ndates <- length(ratio_predict$date) 
     strat_nsamp_threshld <- min(ratio_strata_nsamp_threshold,sum(ifsamp)) 
     
     stratbin <- 2 * season + ifhi - 1 ;
@@ -87,7 +84,6 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
       stratbin <- stratbin + 1 - ifhi 
     }
     
-    
     #Collapse of strata across seasons */
     lochi<-which(mod(stratbin,2)==0)
     loclo<-which(mod(stratbin,2) == 1) 
@@ -100,8 +96,6 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
       }
     }
     
-    
-    
     if (length(loclo) > 0){
       stratbins <- unique(stratbin[loclo])
       strat_nsamp <-nsamp(stratbin,ifhi,ifsamp,stratbins,1)
@@ -111,12 +105,9 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
     }
     
     stratbins <- unique(stratbin) 
-    
     strata<-matrix(0,ncol=0,nrow=length(stratbin))
     for (s in stratbins){
-      
       strat<-ifelse(stratbin==s,1,0)
-      
       strata<-cbind(strata,strat)
     }
     
@@ -124,8 +115,7 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
     strat_nsamp <- colSums(strata_samp)
     min_strat_nsamp <- min(strat_nsamp)
     
-    
-    #Compute strata statistics */
+    #Compute strata statistics
     dflowsum_strata <- t(dflow) %*% strata
     y_samp <- dload[locsamp] 
     x_samp <- dflow[locsamp] 
@@ -162,7 +152,6 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
         (2 / nstrata) * (cxxx + cxyy - 2 * cxxy) 
     )) 
     
-    
     #Compute mean annual load and standard error mean annual load for the ratio estimator */
     locav = which(if_avpredict!=0)
     if (length(locav) != 0){
@@ -177,20 +166,11 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
       nstrata <- NA 
     }
     
-    print(paste("unique(siteQ$",stationIdname,")[1]",sep=""))
-    if (site_id==eval(parse(text=paste("unique(siteQ$",stationIdname,")[1]",sep="")))){
-      ratio_load_param<-data.frame(site_id,rload,serload,nstrata) 
-      names(ratio_load_param)[1]<-stationIdname
-    }else{
-      Tempratio_load_param<-data.frame(site_id,rload,serload,nstrata) 
-      names(Tempratio_load_param)[1]<-stationIdname
-      ratio_load_param<-rbind(ratio_load_param,Tempratio_load_param) 
-    }
-    print(ratio_load_param)
+    ratio_load_param<-data.frame(rload,serload,nstrata) 
     
-  }#for each site
+  # }#for each site
   
-  names(ratio_load_param)[2:3]<-paste(names(ratio_load_param)[2:3],"_",constitName,"_kg/y",sep="")
+  names(ratio_load_param)[1:2]<-paste(names(ratio_load_param)[1:2],"_",constitName,"_kg_y",sep="") # avoid / in colnames so dplyr is happy
   
   return(ratio_load_param)
   

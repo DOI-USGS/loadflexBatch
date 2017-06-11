@@ -1,14 +1,8 @@
-setwd("D:/APAData/GitHub/River Fluxes/ratioestimator")
-
-source('altmod.R')
-source('collapse_stratbins.R')
-source('mod.R')
-source('nsamp.R')
-source('predict_ratio.R')
+bealesFiles <- sapply(file.path('batch_Beales', c('altmod.R','collapse_stratbins.R','mod.R','nsamp.R','predict_ratio.R')), source)
 
 #objects needed
-siteQ<-read.csv("siteQ.csv")
-siteConstit<-read.csv("siteConstit.csv")
+siteQ<-read.csv("D:/APAData/GitHub/River Fluxes/ratioestimator/siteQ.csv")
+siteConstit<-read.csv("D:/APAData/GitHub/River Fluxes/ratioestimator/siteConstit.csv")
 siteQ$date<-as.Date(siteQ$date)
 siteConstit$date<-as.Date(siteConstit$date)
 
