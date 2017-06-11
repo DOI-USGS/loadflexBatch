@@ -4,6 +4,7 @@
 #'@param siteQ data.frame containing date, Q, stationIdname (other columns can exist)
 #'@param siteConstit data.frame containing date, constitName, stationIdname, status (other columns can exist)
 #'@param minDaysPerYear minumim number of days indicating the year is full
+#'@param waterYear TRUE or FALSE
 #'@param constitName character indicating name of column with WQ data
 #'@param stationIdname character indicating name of column with station identification data
 #'@param hi_flow_percentile number indicating threshold for designating high-flow observations
@@ -15,7 +16,7 @@
 #'@return data.frame with station, Beale avg flux (kg/y), SE Beale avg flux (kg/y), number of strata for Beale avg flux
 
 
-predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,constitName,stationIdname,
+predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,stationIdname,
                         hi_flow_percentile,ratio_strata_nsamp_threshold,concTrans, qTrans){
   
   for (site_id in eval(parse(text=paste("unique(siteQ$",stationIdname,")",sep="")))){ #loop through stations
@@ -45,7 +46,12 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,constitName,stationIdna
     
     #set if_avpredict variable
     #get number of missing flows per year
-    ratio_predict$year<-lubridate::year(ratio_predict$date)
+    if (waterYear==FALSE){
+      ratio_predict$year<-lubridate::year(ratio_predict$date) 
+    }else{
+      ratio_predict$year<-ifelse(lubridate::month(ratio_predict$date)<10,lubridate::year(ratio_predict$date),lubridate::year(ratio_predict$date)+1)
+    }
+    
     existQ<-ratio_predict[which(!is.na(ratio_predict$Q)),]
     existQ<-aggregate(existQ[c("date")],by=list(year = existQ$year),length)
     names(existQ)[2]<-"countDays"
