@@ -53,7 +53,7 @@ plotEGRET('plotConcTimeDaily', load.model=models$REG, newdata=estdat); title('RE
 # Weighted regression on time, discharge, and season (WRTDS)
 input_WRTDS <- convertToEGRET(data=fitdat, newdata=estdat, meta=meta)
 models$WRTDS <- modelEstimation(input_WRTDS, minNumObs=30)
-plotConcTimeDaily(models$WRTDS); title('WRTDS', line=-2)
+EGRET::plotConcTimeDaily(models$WRTDS); title('WRTDS', line=-2)
 EGRET::plotConcHist(models$WRTDS, plotFlowNorm=FALSE)
 EGRET::plotFluxHist(models$WRTDS, plotFlowNorm=FALSE)
 
