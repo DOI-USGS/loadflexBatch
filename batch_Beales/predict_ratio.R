@@ -1,21 +1,28 @@
-#'@title predict_ratio
-#'@description Stratified Beale ratio estimator adapted from predict_ratio module in FLUXMASTER.  
-#'Requires functions mod, altmod, nsamp, and collapse_stratbins.
-#'@param siteQ data.frame containing date, Q, stationIdname (other columns can exist)
-#'@param siteConstit data.frame containing date, constitName, stationIdname, status (other columns can exist)
-#'@param minDaysPerYear minumim number of days indicating the year is full
-#'@param waterYear TRUE or FALSE
-#'@param constitName character indicating name of column with WQ data
-#'@param stationIdname character indicating name of column with station identification data
-#'@param hi_flow_percentile number indicating threshold for designating high-flow observations
-#'@param ratio_strata_nsamp_threshold number indicating minimum number of observations required for includsion of stratum in the ratio estimate
-#'@param concTrans constant transformation factor for converting to units of mg/L
-#'@param qTrans constant transformation factor for converting Q to units of ft3/s
-#'@import lubridate for year()
-#'@import smwrBase for seasons()
-#'@return data.frame with station, Beale avg flux (kg/y), SE Beale avg flux (kg/y), number of strata for Beale avg flux
-
-
+#' @title predict_ratio
+#' @description Stratified Beale ratio estimator adapted from predict_ratio 
+#'   module in FLUXMASTER. Requires functions mod, altmod, nsamp, and 
+#'   collapse_stratbins.
+#' @param siteQ data.frame containing date, Q, stationIdname (other columns can 
+#'   exist)
+#' @param siteConstit data.frame containing date, constitName, stationIdname, 
+#'   status (other columns can exist)
+#' @param minDaysPerYear minumim number of days indicating the year is full
+#' @param waterYear TRUE or FALSE
+#' @param constitName character indicating name of column with WQ data
+#' @param stationIdname character indicating name of column with station 
+#'   identification data
+#' @param hi_flow_percentile number indicating threshold for designating 
+#'   high-flow observations
+#' @param ratio_strata_nsamp_threshold number indicating minimum number of 
+#'   observations required for includsion of stratum in the ratio estimate
+#' @param concTrans constant transformation factor for converting to units of 
+#'   mg/L
+#' @param qTrans constant transformation factor for converting Q to units of 
+#'   ft3/s
+#' @import lubridate for year()
+#' @import smwrBase for seasons()
+#' @return data.frame with station, Beale avg flux (kg/y), SE Beale avg flux 
+#'   (kg/y), number of strata for Beale avg flux
 predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,stationIdname,
                         hi_flow_percentile,ratio_strata_nsamp_threshold,concTrans, qTrans){
   
@@ -170,6 +177,7 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
       nstrata <- NA 
     }
     
+    print(paste("unique(siteQ$",stationIdname,")[1]",sep=""))
     if (site_id==eval(parse(text=paste("unique(siteQ$",stationIdname,")[1]",sep="")))){
       ratio_load_param<-data.frame(site_id,rload,serload,nstrata) 
       names(ratio_load_param)[1]<-stationIdname
@@ -178,11 +186,9 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,s
       names(Tempratio_load_param)[1]<-stationIdname
       ratio_load_param<-rbind(ratio_load_param,Tempratio_load_param) 
     }
-    
-    
+    print(ratio_load_param)
     
   }#for each site
-  
   
   names(ratio_load_param)[2:3]<-paste(names(ratio_load_param)[2:3],"_",constitName,"_kg/y",sep="")
   
