@@ -1,0 +1,49 @@
+
+% Table created by stargazer v.5.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Thu, Jun 08, 2017 - 4:25:05 PM
+\begin{table}[htb!] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}} cccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Symbol & Code Name & Description & Units \\ 
+\hline \\[-1.8ex] 
+\$M\$ & `d` & number of days & d \\ 
+\$N\$ & `n` & number of observations per day & observations \\ 
+\$d\$ & `j` & integer index for a day & --- \\ 
+\$i\$ & `i` & integer index for an observation time within a day & --- \\ 
+\$t\$ & --- & continuous time within a day & d \\ 
+\$\textbackslash Delta t\$ & `timestep` & time between two successive observations & d \\ 
+\$O\_\{obs\}\$ & `DO\_obs` & oxygen concentration, observed or simulated & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$O\_\{mod\}\$ & `DO\_mod` & oxygen concentration, modeled over full day & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$O\_\{pmod\}\$ & `DO\_mod\_partial` & oxygen concentration, modeled over one timestep & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$O\_\{true\}\$ & --- & oxygen concentration used to compute saturation deficit & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$dO\_\{mod\}/dt\$ & --- & rate of change in oxygen concentration, modeled & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$dO\_\{obs\}/dt\$ & --- & rate of change in oxygen concentration, observed & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash Delta O\_\{mod\}/\textbackslash Delta t\$ & --- & change over one timestep in oxygen concentration, modeled & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash Delta O\_\{obs\}/\textbackslash Delta t\$ & --- & change over one timestep in oxygen concentration, observed & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$GPP\$ & `GPP\_inst` & rate of oxygen addition by gross primary production & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$ER\$ & `ER\_inst` & rate of oxygen removal by respiration & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$D\$ & --- & rate of air-water oxygen exchange & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash bar\{z\}\$ & `depth` & reach-averaged water depth & m \\ 
+\$PPFD\$ & `light` & photosynthetic photon flux density & \$\textbackslash mu\$mol m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$T\$ & `temp.water` & water temperature & °C \\ 
+\$A\_\{T,daily\}\$ &  & daily amplitude of water temperature & °C \\ 
+\$Q\_\{daily\}\$ & `discharge.daily` & daily mean discharge & m$\hat{\mkern6mu}$3$\hat{\mkern6mu}$ s$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$GPP\_\{daily\}\$ & `GPP\_daily` & daily mean gross primary production rate & g O\textasciitilde2\textasciitilde m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$ER\_\{daily\}\$ & `ER\_daily` & daily mean respiration rate & g O\textasciitilde2\textasciitilde m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$K\_\{600,daily\}\$ & `K600\_daily` & standardized reaeration rate coefficient & d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$K\_\{2\}\$ & `K2\_inst` & oxygen- and temperature-specific reaeration rate coefficient & d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$K\_\{600,pred\}\$ & `K600\_pred` & piecewise model prediction of \$K\_\{600,daily\}\$ & d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash varepsilon\_\{obs\}\$ & `err\_obs\_iid` & observation error & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash varepsilon\_\{proc\}\$ & `err\_proc\_iid` & process error & g O\textasciitilde2\textasciitilde m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash sigma\_\{\textbackslash varepsilon\_\{obs\}\}\$ & `err\_obs\_iid\_sigma` & standard deviation of observation error & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash sigma\_\{\textbackslash varepsilon\_\{proc\}\}\$ & `err\_proc\_iid\_sigma` & standard deviation of process error & g O\textasciitilde2\textasciitilde m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash sigma\_\{K\}\$ & `K600\_daily\_sigma` & standard deviation of process error & d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash gamma\_\{\textbackslash sigma\_\{\textbackslash varepsilon\_\{obs\}\}\}\$ & `err\_obs\_iid\_sigma\_scale` & half-Cauchy scale, prior on \$\textbackslash sigma\_\{\textbackslash varepsilon\_\{obs\}\}\$ & mg O\textasciitilde2\textasciitilde L$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash gamma\_\{\textbackslash sigma\_\{\textbackslash varepsilon\_\{proc\}\}\}\$ & `err\_proc\_iid\_sigma\_scale` & half-Cauchy scale, prior on \$\textbackslash sigma\_\{\textbackslash varepsilon\_\{proc\}\}\$ & g O\textasciitilde2\textasciitilde m$\hat{\mkern6mu}$-2$\hat{\mkern6mu}$ d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\$\textbackslash sigma\_\{\textbackslash sigma\_\{K\}\}\$ & `K600\_daily\_sigma\_sigma` & half-normal standard deviation, prior on \$\textbackslash sigma\_\{K\}\$ & d$\hat{\mkern6mu}$-1$\hat{\mkern6mu}$ \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
