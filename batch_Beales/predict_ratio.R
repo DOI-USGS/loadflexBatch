@@ -166,6 +166,6 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,#
   }
   
   ratio_load_param<-data.frame(rload,serload,nstrata) 
-  names(ratio_load_param)[1:2]<-paste(names(ratio_load_param)[1:2],"_",constitName,"_kg_y",sep="")
+  names(ratio_load_param)[1:2]<-paste(names(ratio_load_param)[1:2],"_kg_y",sep="")
   return(ratio_load_param)
 }

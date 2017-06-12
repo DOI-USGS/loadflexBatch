@@ -6,7 +6,7 @@
 
 #### User inputs ####
 
-inputs <- yaml::yaml.load_file('ANA_sites_170529.yml')
+inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
 
 
 #### Load packages, read inputs, set up directories ####
@@ -16,6 +16,7 @@ library(loadflex)
 library(tools)
 library(rloadest)
 source('batchHelperFunctions.R') # functions that support this script are stored here
+bealesFiles <- sapply(file.path('batch_Beales', c('altmod.R','collapse_stratbins.R','mod.R','nsamp.R','predict_ratio.R')), source)
 
 # Read the site info file and attach corresponding files
 allSiteInfo <- combineSpecs(inputs)
@@ -185,8 +186,23 @@ for(constitName in constits) { # constitName='NO3'
       reg.model = rloadest5nocens, interp.format = "conc", interp.function = rectangularInterpolation, 
       interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
+    # Beale's ratio doesn't have a model object; here we're doing the fitting,
+    # diagnostics, and multi-year prediction all at once. The estimator code always generates predictions in kg/y
+    beales <- predict_ratio(
+      siteQ, siteConstit, # data
+      inputs$minDaysPerYear,
+      waterYear=TRUE,
+      constitName=siteMeta@constituent,
+      hi_flow_percentile=80, #Default threshold for designating high-flow observations,
+      ratio_strata_nsamp_threshold=10, #Default minimum number of observations required for inclusion of a stratum in the ratio estimate,
+      concTrans=1, #constant transformation factor for converting to units of mg/L. NA=1 implies input is mg/L
+      qTrans=35.31466) #constant transformation factor for converting Q to units of ft3/s. 35.3 implies input is cms
+    class(beales) <- 'loadBeale'
+    #   rload_NO3_kg/y serload_NO3_kg/y nstrata
+    # 1       88260.66         7910.503       4
+    
     # Create list of all model objects
-    allModels <- list(RL5=rloadest5param, RL7=rloadest7param, CMP=comp, INT=interpRect) #, REGU=rloadest5nocens
+    allModels <- list(RL5=rloadest5param, RL7=rloadest7param, CMP=comp, INT=interpRect, BRE=beales) #, REGU=rloadest5nocens
     
     
     #### Create output data files ####
@@ -216,7 +232,8 @@ for(constitName in constits) { # constitName='NO3'
           class(allModels[[mod]]), # slightly different call for each model type
           loadReg2 = summarizeModel(allModels[[mod]]),
           loadComp = summarizeModel(allModels[[mod]], newdata=siteQ, irregular.timesteps.ok=TRUE),
-          loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE)
+          loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE),
+          loadBeale = data_frame(site.id=siteMeta@site.id, constituent=siteMeta@constituent, nstrata=allModels[[mod]]$nstrata)
         )
         modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
           setNames(paste0(mod, '.', names(.))) # add the "REG.", "CMP.", etc. prefix
@@ -239,6 +256,8 @@ for(constitName in constits) { # constitName='NO3'
       (if(is(mod, 'loadComp')) {
         suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
           mutate(se.pred=NA)
+      } else if(is(mod, 'loadBeale')) {
+        data.frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
       } else {
         predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
       }) %>%
@@ -282,6 +301,14 @@ for(constitName in constits) { # constitName='NO3'
             model = mod
           ) %>%
           select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+      } else if(is(allModels[[mod]], 'loadBeale')) {
+        data.frame(
+          Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
+          Flux_Rate = NA,
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod)
       } else {
         suppressWarnings(aggregateSolute(
           predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
@@ -331,6 +358,15 @@ for(constitName in constits) { # constitName='NO3'
             years.complete = length(unique(completeWaterYears))
           ) %>%
           select(Flux_Rate, SE, CI_lower, CI_upper, years.record, years.complete)
+      } else if(is(allModels[[mod]], 'loadBeale')) {
+        data.frame(
+          Flux_Rate = allModels[[mod]]$rload_kg_y,
+          SE = allModels[[mod]]$serload_kg_y
+        ) %>%
+          mutate(
+            CI_lower = Flux_Rate - 1.96*SE,
+            CI_upper = Flux_Rate + 1.96*SE,
+            model=mod)
       } else {
         suppressWarnings(aggregateSolute(
           predsLoad[[mod]], siteMeta, agg.by="mean water year", 

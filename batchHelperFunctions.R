@@ -198,7 +198,7 @@ writePDFreport <- function(loadModels, estdat, siteMeta, loadflexVersion, batchS
   mtext(text=sprintf('loadflex version %s', loadflexVersion), side=1, line=-1, adj=0, outer=TRUE, font=3)
   mtext(text=sprintf('run at %s', batchStartTime), side=1, line=-1, adj=1, outer=TRUE, font=3)
   
-  for(m in 1:length(loadModels)) {
+  for(m in which(!sapply(allModels, is, 'loadBeale'))) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
     modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
