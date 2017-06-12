@@ -377,8 +377,8 @@ for(constitName in constits) { # constitName='NO3'
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
     multiYearSummary <- reshape(
-      multiYearSummary, idvar = c('site.id','constituent','years.record','years.complete'), direction = "wide", 
-      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
+      multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
+      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper",'years.record','years.complete'), timevar = "model")
     multiYearSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
       multiYearSummary, 
       sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
