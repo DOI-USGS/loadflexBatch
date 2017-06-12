@@ -12,16 +12,12 @@ First, go to the Github repository [USGS-R/loadflexBatch](https://github.com/USG
 list.files()
 ```
 
-    ##  [1] "batch.R"                            
-    ##  [2] "batchHelperFunctions.R"             
-    ##  [6] "blog.md"                            
-    ##  [7] "blog.Rmd"                           
-    ##  [8] "Hirsch_sites"                       
-    ##  [9] "Hirsch_sites.yml"                   
-    ## [11] "loadflexBatch.Rproj"                
-    ## [12] "README.md"                          
-    ## [13] "three_ANA_sites"                    
-    ## [14] "three_ANA_sites.yml"
+    ##  [1] "ANA_tutorials"          "batch.R"               
+    ##  [3] "batch_Beales"           "batch_tutorial.md"     
+    ##  [5] "batch_tutorial.Rmd"     "batchHelperFunctions.R"
+    ##  [7] "Hirsch_sites"           "Hirsch_sites.yml"      
+    ##  [9] "loadflexBatch.Rproj"    "README.md"             
+    ## [11] "three_ANA_sites"        "three_ANA_sites.yml"
 
 Next, we need to install the packages that the script depends on. In your console, run
 
@@ -76,6 +72,7 @@ The default file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch
 
     # output folder where results files and subfolders will be written
     outputFolder: "three_ANA_sites/output"
+    outputTimestamp: TRUE # if TRUE, output folder appended with DATE_TIME
 
 The `constituents` named in the user inputs file need to match the names of the input subfolders that contain the input data (paired water quality and discharge measurements). Similarly, `dischargeFolder` should name a subfolder containing the discharge measurements used to make the load predictions.
 
