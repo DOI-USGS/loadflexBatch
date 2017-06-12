@@ -18,4 +18,4 @@ loadRateUnits: "kg/yr"
 
 # output folder where results files and subfolders will be written
 outputFolder: "three_ANA_sites/output"
-outputTimestamp: TRUE # if TRUE, output folder appended with DATE_TIME
+outputTimestamp: FALSE # if TRUE, output folder appended with DATE_TIME
