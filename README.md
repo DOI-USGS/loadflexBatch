@@ -9,3 +9,5 @@ To install or update `loadflex`, see the README at
 For a description of this repository's contents, and instructions on how to use 
 the scripts contained here, see 
 [blog.md](https://github.com/USGS-R/loadflexBatch/blob/master/blog.md).
+
+Updated 5/29/2017

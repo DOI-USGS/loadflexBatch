@@ -90,6 +90,19 @@ matchFiles <- function(siteInfo) {
   return(siteFileSets)
 }
 
+#' Limit the time spent on a function
+#' 
+#' From https://stackoverflow.com/questions/7891073/time-out-an-r-command-via-something-like-try
+#' 
+#' @param expr the expression to evaluate
+#' @param cpu cpu argument as in setTimeLimit
+#' @param elapsed argument as in setTimeLimit
+tryWithTimeLimit <- function(expr, cpu = Inf, elapsed = Inf)
+{
+  y <- try({setTimeLimit(cpu, elapsed, transient=TRUE); expr}, silent = TRUE) 
+  if(inherits(y, "try-error")) NULL else y 
+}
+
 #' Combine 1-row summary files into a single multi-row file
 #' 
 #' @param csvType the name of the summary type to combine
@@ -100,7 +113,7 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics
   csvType <- match.arg(csvType)
   
   # read and combine the 1-row data files for all sites and constituents
-  allCsvs <- bind_rows(lapply(seq_len(nrow(siteFileSets)), function(i) {
+  allCsvs <- bind_rows(lapply(seq_len(nrow(constitSiteInfo)), function(i) {
     matchingSite <- constitSiteInfo$matching.site[i] # this is how we'll name the output files
     constitName <- constitSiteInfo$constituent.CONC[i]
     csvFile <- file.path(outputFolder, constitName, csvType, paste0(matchingSite, '.csv'))
@@ -125,6 +138,41 @@ summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics
   return(allCsvs)
 }
 
+#' Combine 1-row summary files into a single multi-row file
+#' 
+#' @param constitSiteInfo the metadata table linking constituent and discharge files
+#' @param outputFolder the folder where output should be written
+summarizePlots <- function(constitSiteInfo, outputFolder) {
+  constits <- unique(constitSiteInfo$constituent.CONC)
+  for(constitName in constits) {
+    constitFileSets <- dplyr::filter(constitSiteInfo, constituent.CONC == constitName)
+    # read and combine the 1-site, 1 constit pdf files for all sites with this constituent
+    allPlotFiles <- unlist(lapply(seq_len(nrow(constitFileSets)), function(i) {
+      matchingSite <- constitSiteInfo$matching.site[i] # this is how we named the output files
+      plotFile <- file.path(outputFolder, constitName, 'plots', paste0(matchingSite, '.pdf'))
+      if(file.exists(plotFile)) {
+        plotFile
+      } else {
+        message(paste0('could not read ', plotFile))
+        NULL
+      }
+    }))
+    if(length(allPlotFiles) > 0) {
+      if(require(plotflow)) {
+        ## paste the paths to pdfs together in one string w/ spaces
+        plotflow:::mergePDF(
+          in.file=paste(allPlotFiles, collapse=" "),
+          file=paste0(constitName, "_plots.pdf")
+        )
+      } else {
+        message("to combine pdfs, install the plotflow package with devtools::install_github('trinker/plotflow')")
+      }
+    } else {
+      message("no ", constitName, " pdfs to combine")
+    }
+  }
+}
+
 #' Create plots for all models for a single site/constituent pair
 #' 
 #' @param loadModels a list of load models
@@ -134,22 +182,23 @@ writePDFreport <- function(loadModels, estdat, siteMeta, loadflexVersion, batchS
   
   # make plots. the first page is redundant across models
   modelNames <- data.frame(
-    short = c("REG", "INT", "CMP"),
-    long = c("Regression Model (rloadest 5 parameter)",
+    short = c("RL5", "RL7", "INT", "CMP"),
+    long = c("Regression Model L5 (rloadest 5 parameter)",
+             "Regression Model L7 (rloadest 7 parameter)",
              "Interpolation Model (rectangular)",
              "Composite Model (rloadest + interpolation)"),
     stringsAsFactors = FALSE)
   
   # page 1: input data with censoring
   eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
-    convertToEGRET(meta = siteMeta, data=getFittingData(loadModels$REG), newdata = estdat))
+    convertToEGRET(meta = siteMeta, data=getFittingData(loadModels[[1]]), newdata = estdat))
   plotEGRET("multiPlotDataOverview", eList=eList)
   title(main="Input Data", line=-1, adj=0, outer=TRUE)
   title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
   mtext(text=sprintf('loadflex version %s', loadflexVersion), side=1, line=-1, adj=0, outer=TRUE, font=3)
   mtext(text=sprintf('run at %s', batchStartTime), side=1, line=-1, adj=1, outer=TRUE, font=3)
   
-  for(m in 1:length(loadModels)) {
+  for(m in which(!sapply(allModels, is, 'loadBeale'))) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
     modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
@@ -157,14 +206,14 @@ writePDFreport <- function(loadModels, estdat, siteMeta, loadflexVersion, batchS
     eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
       convertToEGRET(load.model=loadModel, newdata=estdat))
     
-    # pages 2,4,6
+    # pages 2,4,6,8
     par(mfrow=c(2,1), oma=c(0,0,1,0))
     plotEGRET("plotConcTimeDaily", eList=eList, mgp = c(4,1,0))
     title(main=paste0("Predictions"), line=0, adj=0, outer=TRUE)
     title(main=sprintf("%s-%s-1", siteMeta@site.id, modelShort), line=0, adj=1, outer=TRUE)
     plotEGRET("plotFluxTimeDaily", eList=eList, mgp = c(4,1,0))
     
-    # pages 3,5,7
+    # pages 3,5,7,9
     if(is(loadModel, 'loadReg2')) {
       plotEGRET("fluxBiasMulti", eList=eList, moreTitle = paste0(modelLong, '; '))
       headerLine <- -1

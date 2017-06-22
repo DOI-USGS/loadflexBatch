@@ -18,3 +18,4 @@ loadRateUnits: "kg y^-1"
 
 # output folder where results files and subfolders will be written
 outputFolder: "Hirsch_sites/output"
+outputTimestamp: FALSE # if TRUE, output folder appended with DATE_TIME

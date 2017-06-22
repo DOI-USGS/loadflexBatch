@@ -16,16 +16,22 @@ library(loadflex)
 library(tools)
 library(rloadest)
 source('batchHelperFunctions.R') # functions that support this script are stored here
+bealesFiles <- sapply(file.path('batch_Beales', c('altmod.R','collapse_stratbins.R','mod.R','nsamp.R','predict_ratio.R')), source)
 
 # Read the site info file and attach corresponding files
 allSiteInfo <- combineSpecs(inputs)
 siteFileSets <- matchFiles(allSiteInfo)
 
+# If outputTimestamp==TRUE, add timestamp to the output folder name
+if(inputs$outputTimestamp) {
+  inputs$outputFolder <- paste0(inputs$outputFolder, '_', format(Sys.time(), '%y%m%d_%H%M%S'))
+}
+
 # Create output directories
 constits <- unique(siteFileSets$constituent.CONC)
 nConstits <- length(constits)
 outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), constits)
-outDetailsDirs <- file.path(rep(outConstitDirs, each=4), rep(c("inputs","annual","multiYear","modelMetrics"), times=nConstits))
+outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs","annual","multiYear","modelMetrics","plots"), times=nConstits))
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 
@@ -36,18 +42,13 @@ sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 loadflexVersion <- as.character(packageVersion('loadflex'))
 batchStartTime <- Sys.time() # for GitHub repo use "2017-03-22 14:31:59"
 message('running loadflex version ', loadflexVersion, ' in batch mode at ', batchStartTime)
-for(constitName in constits) {
-  
-  # Start this constituent's pdf file
-  graphics.off()
-  pdf(height = 10, width = 7.5, paper = "letter",
-      file = file.path(inputs$outputFolder, constitName, sprintf("%s_plots.pdf", constitName)))
+for(constitName in constits) { # constitName='NO3'
   
   #### Loop over sites within constituent ####
   
   # Loop over sites having this constituent
   constSites <- filter(siteFileSets, constituent.CONC == constitName)
-  for(siteName in constSites$matching.site) {
+  for(siteName in constSites$matching.site) { # siteName=constSites$matching.site[2]
     
     # Plan for and announce this iteration
     constitSiteInfo <- filter(constSites, matching.site == siteName)
@@ -60,6 +61,10 @@ for(constitName in constits) {
     # Read in appropriate files
     siteQ <- read.csv(constitSiteInfo$filepath.FLOW, stringsAsFactors = FALSE)
     siteConstit <- read.csv(constitSiteInfo$filepath.CONC, stringsAsFactors = FALSE)
+    if(nrow(siteConstit) == 0) {
+      message("empty table at ", constitSiteInfo$filepath.CONC)
+      next
+    }
     
     # Identify and require column names as given in site info
     constitColName <- constitSiteInfo$constituent.CONC
@@ -136,13 +141,25 @@ for(constitName in constits) {
     set.seed(9451)
     
     # Fit the rloadest model (use the smwrQW censoring format)
-    loadRegFormula <- formula(paste(constitColName,"~model(7)"))
+    # L5: center(log(FLOW)) + center(dectime(DATE)) + fourier(DATE)
+    loadRegFormulaL5 <- formula(paste(constitColName,"~model(7)"))
     siteConstitRloadest <- setNames(
       siteConstit[c(dateColName, qwconstitColName, qColName)],
       c(dateColName, constitColName, qColName))
     rloadest5param <- loadReg2(
       loadReg(
-        loadRegFormula, data = siteConstitRloadest, 
+        loadRegFormulaL5, data = siteConstitRloadest, 
+        flow = qColName, dates = dateColName, time.step = "day",
+        flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
+        conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
+        load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
+      site.id = getInfo(siteMeta, 'site.id'),
+      pred.format = 'conc')
+    # L7: quadratic(log(FLOW)) + quadratic(dectime(DATE)) + fourier(DATE)
+    loadRegFormulaL7 <- formula(paste(constitColName,"~model(9)"))
+    rloadest7param <- loadReg2(
+      loadReg(
+        loadRegFormulaL7, data = siteConstitRloadest, 
         flow = qColName, dates = dateColName, time.step = "day",
         flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
         conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -158,7 +175,7 @@ for(constitName in constits) {
     # Fit the composite model (with rloadest model that doesn't do censoring)
     rloadest5nocens <- loadReg2( # only difference is the data (non-censored)
       loadReg(
-        loadRegFormula, data = siteConstit, 
+        loadRegFormulaL5, data = siteConstit, 
         flow = qColName, dates = dateColName, time.step = "day",
         flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
         conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -169,8 +186,23 @@ for(constitName in constits) {
       reg.model = rloadest5nocens, interp.format = "conc", interp.function = rectangularInterpolation, 
       interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
     
+    # Beale's ratio doesn't have a model object; here we're doing the fitting,
+    # diagnostics, and multi-year prediction all at once. The estimator code always generates predictions in kg/y
+    beales <- predict_ratio(
+      siteQ, siteConstit, # data
+      inputs$minDaysPerYear,
+      waterYear=TRUE,
+      constitName=siteMeta@constituent,
+      hi_flow_percentile=80, #Default threshold for designating high-flow observations,
+      ratio_strata_nsamp_threshold=10, #Default minimum number of observations required for inclusion of a stratum in the ratio estimate,
+      concTrans=1, #constant transformation factor for converting to units of mg/L. NA=1 implies input is mg/L
+      qTrans=35.31466) #constant transformation factor for converting Q to units of ft3/s. 35.3 implies input is cms
+    class(beales) <- 'loadBeale'
+    #   rload_NO3_kg/y serload_NO3_kg/y nstrata
+    # 1       88260.66         7910.503       4
+    
     # Create list of all model objects
-    allModels <- list(REG=rloadest5param, CMP=comp, INT=interpRect) #, REGU=rloadest5nocens
+    allModels <- list(RL5=rloadest5param, RL7=rloadest7param, CMP=comp, INT=interpRect, BRE=beales) #, REGU=rloadest5nocens
     
     
     #### Create output data files ####
@@ -200,7 +232,8 @@ for(constitName in constits) {
           class(allModels[[mod]]), # slightly different call for each model type
           loadReg2 = summarizeModel(allModels[[mod]]),
           loadComp = summarizeModel(allModels[[mod]], newdata=siteQ, irregular.timesteps.ok=TRUE),
-          loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE)
+          loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE),
+          loadBeale = data_frame(site.id=siteMeta@site.id, constituent=siteMeta@constituent, nstrata=allModels[[mod]]$nstrata)
         )
         modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
           setNames(paste0(mod, '.', names(.))) # add the "REG.", "CMP.", etc. prefix
@@ -223,6 +256,8 @@ for(constitName in constits) {
       (if(is(mod, 'loadComp')) {
         suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
           mutate(se.pred=NA)
+      } else if(is(mod, 'loadBeale')) {
+        data.frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
       } else {
         predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
       }) %>%
@@ -233,11 +268,31 @@ for(constitName in constits) {
     })
     
     # Predict annual fluxes
+    message(" * generating annual mean load estimates...")
     annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+      message(paste0('   ', mod, '...'), appendLF = FALSE)
       if(is(allModels[[mod]], 'loadReg2')) {
-        predLoad(getFittedModel(allModels[[mod]]), newdata=siteQ, by='water year', allow.incomplete=TRUE) %>%
+        siteQ %>%
+          mutate(Water_Year=smwrBase::waterYear(siteQ[[dateColName]])) %>%
+          group_by(Water_Year) %>%
+          do({
+            # years with a lot of NaNs in the se.pred really slow down the
+            # estimation. Remove those rows (changes the )
+            siteYearQ <- .
+            dailyPreds <- predsLoad[[mod]] %>% 
+              mutate(Water_Year=smwrBase::waterYear(predsLoad[[mod]][[dateColName]])) %>%
+              filter(Water_Year == siteYearQ$Water_Year[1])
+            if(length(which(!is.finite(dailyPreds$se.pred))) > 0) {
+              message('skipping NaN-riddled ', as.character(siteYearQ$Water_Year[1]), '...', appendLF = FALSE)
+              data.frame(Flux=NaN, SEP=NaN, Ndays=0) # Ndays=0 ensures this year is skipped for total, too
+            } else {
+              siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+                select(-Water_Year)
+              predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='water year', allow.incomplete=TRUE)
+            }
+          }) %>%
+          ungroup() %>%
           mutate(
-            Water_Year = ordered(substring(Period, 4)),
             Flux_Rate = Flux * conv.load.rate,
             SE = SEP * conv.load.rate,
             n = Ndays,
@@ -246,6 +301,14 @@ for(constitName in constits) {
             model = mod
           ) %>%
           select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+      } else if(is(allModels[[mod]], 'loadBeale')) {
+        data.frame(
+          Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
+          Flux_Rate = NA,
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod)
       } else {
         suppressWarnings(aggregateSolute(
           predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
@@ -258,36 +321,52 @@ for(constitName in constits) {
     })) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
-    annualSummary <- reshape(
-      annualSummary, idvar = c('site.id','constituent',"Water_Year"), direction = "wide", 
-      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
-    annualSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
-      annualSummary, 
-      sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
-          replacement='\\2.\\1', names(annualSummary)))
+    col_order <- c(
+      'site.id', 'constituent', 'Water_Year',
+      sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+    annualSummary <- annualSummary %>%
+      tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+      mutate(var=ordered(paste0(model, '.', var))) %>%
+      select(-model) %>%
+      tidyr::spread(var, val) %>%
+      select_(.dots=col_order)
     annualSummary <- annualSummary %>%
       mutate(
         loadflex.version = loadflexVersion, 
         run.date = batchStartTime)
+    message('done!')
     write.csv(
       x = annualSummary, 
       file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
       row.names=FALSE)
     
     # Predict the multi-year average flux, complete years only
-    completeWaterYears <- annualSummary %>% filter(n >= inputs$minDaysPerYear) %>% .$Water_Year
-    completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
-      filter(Water_Year %in% completeWaterYears)
+    message(" * generating multi-year mean load estimates...", appendLF = FALSE)
     multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+      message(paste0(mod, '...'), appendLF=FALSE)
+      completeWaterYears <- annualSummary %>% filter(.[[paste0(mod,'.n')]] >= inputs$minDaysPerYear) %>% .$Water_Year
+      completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
+        filter(Water_Year %in% completeWaterYears)
       (if(is(allModels[[mod]], 'loadReg2')) {
         predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
           mutate(
             Flux_Rate = Flux * conv.load.rate,
             SE = SEP * conv.load.rate,
             CI_lower = L95 * conv.load.rate,
-            CI_upper = U95 * conv.load.rate
+            CI_upper = U95 * conv.load.rate,
+            years.record = length(unique(annualSummary$Water_Year)),            
+            years.complete = length(unique(completeWaterYears))
           ) %>%
-          select(Flux_Rate, SE, CI_lower, CI_upper)
+          select(Flux_Rate, SE, CI_lower, CI_upper, years.record, years.complete)
+      } else if(is(allModels[[mod]], 'loadBeale')) {
+        data.frame(
+          Flux_Rate = allModels[[mod]]$rload_kg_y,
+          SE = allModels[[mod]]$serload_kg_y
+        ) %>%
+          mutate(
+            CI_lower = Flux_Rate - 1.96*SE,
+            CI_upper = Flux_Rate + 1.96*SE,
+            model=mod)
       } else {
         suppressWarnings(aggregateSolute(
           predsLoad[[mod]], siteMeta, agg.by="mean water year", 
@@ -295,12 +374,11 @@ for(constitName in constits) {
       }) %>%
         mutate(model=mod)
     })) %>%
-      mutate(years.record = unique(na.omit(years.record)), years.complete = unique(na.omit(years.complete))) %>%
       mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
       select(site.id, constituent, model, everything())
     multiYearSummary <- reshape(
-      multiYearSummary, idvar = c('site.id','constituent','years.record','years.complete'), direction = "wide", 
-      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper"), timevar = "model")
+      multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
+      v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper",'years.record','years.complete'), timevar = "model")
     multiYearSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
       multiYearSummary, 
       sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
@@ -309,6 +387,7 @@ for(constitName in constits) {
       mutate(
         loadflex.version = loadflexVersion, 
         run.date = batchStartTime)
+    message('done!')
     write.csv(
       x = multiYearSummary, 
       file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
@@ -316,13 +395,19 @@ for(constitName in constits) {
     
     #### Create plots  ####
     
+    # Start this constituent's pdf file
+    graphics.off()
+    pdf(height = 10, width = 7.5, paper = "letter",
+        file = file.path(inputs$outputFolder, constitName, "plots", sprintf("%s.pdf", siteName)))
+    
     # Add plots to the pdf we have open already
     writePDFreport(loadModels = allModels, estdat = siteQ, siteMeta = siteMeta,
                    loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
+    
+    # Close this constituent's pdf file
+    dev.off()
+    
   }
-  
-  # Close this constituent's pdf file
-  dev.off()
 }
 
 #### Combine outputs from all sites ####
@@ -333,3 +418,5 @@ allInputs <- summarizeCsvs('inputs', siteFileSets, inputs$outputFolder)
 allAnnual <- summarizeCsvs('annual', siteFileSets, inputs$outputFolder) 
 allMultiYear <- summarizeCsvs('multiYear', siteFileSets, inputs$outputFolder) 
 allModelMetrics <- summarizeCsvs('modelMetrics', siteFileSets, inputs$outputFolder)
+# summarizePlots(siteFileSets, inputs$outputFolder) # doesn't work on my computer
+message("use Adobe or equivalent to combine pdfs into CONST_plots.pdf")
