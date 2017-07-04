@@ -209,7 +209,7 @@ for(constitName in constits) { # constitName='NO3'
       # Check for units assumptions of Beale's ratio estimator implementation
       if(siteMeta@conc.units != 'mg L^-1') stop("For Beale's ratio estimator, constituent units (in siteInfo file) must be 'mg L^-1'")
       if(inputs$loadUnits != 'kg') stop("For Beale's ratio estimator, loadUnits (in .yml) must be 'kg'")
-      if(inputs$loadRateUnits != 'kg/yr') stop("For Beale's ratio estimator, loadRateUnits (in .yml) must be 'kg/yr'")
+      if(loadflex:::translateFreeformToUnitted(inputs$loadRateUnits) != 'kg y^-1') stop("For Beale's ratio estimator, loadRateUnits (in .yml) must be 'kg y^-1'")
       
       # Beale's ratio doesn't have a model object; here we're doing the fitting,
       # diagnostics, and multi-year prediction all at once. The estimator code always generates predictions in kg/y
