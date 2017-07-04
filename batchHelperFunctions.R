@@ -90,17 +90,222 @@ matchFiles <- function(siteInfo) {
   return(siteFileSets)
 }
 
-#' Limit the time spent on a function
+#' Summarize the input data for all models
 #' 
-#' From https://stackoverflow.com/questions/7891073/time-out-an-r-command-via-something-like-try
+#' Compute and save info on the site, constituent, and input datasets.
+#' Compute num.censored specially here because we're using rloadest format
+#' for censored data (smwrQW format) and will eventually have something
+#' simpler in place for loadflex, at which point we'll add that to
+#' summarizeInputs.
+#' @param siteMeta metadata for this site and constituent
+#' @param siteConstit data.frame of consitutent concentration & discharge observations
+#' @param siteQ data.frame of dates and discharges
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeBatchInputs <- function(siteMeta, siteConstit, siteQ, loadflexVersion, batchStartTime) {
+  inputMetrics <- summarizeInputs(siteMeta, fitdat=siteConstit, estdat=siteQ)
+  inputMetrics$fitdat.num.censored <- length(which(siteConstit[['status']] == 2))
+  inputMetrics$estdat.num.censored <- NULL # assuming no censoring in Q
+  inputMetrics <- inputMetrics %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+}
+
+#' Produce metrics describing the performance of each model
 #' 
-#' @param expr the expression to evaluate
-#' @param cpu cpu argument as in setTimeLimit
-#' @param elapsed argument as in setTimeLimit
-tryWithTimeLimit <- function(expr, cpu = Inf, elapsed = Inf)
-{
-  y <- try({setTimeLimit(cpu, elapsed, transient=TRUE); expr}, silent = TRUE) 
-  if(inherits(y, "try-error")) NULL else y 
+#' Describe model performance in a 1-row data.frame
+#' 
+#' @param allModels list of fitted model objects
+#' @param siteMeta metadata for this site and constituent
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTime) {
+  metrics <- bind_cols(
+    data.frame(summarizeModel(allModels[[1]])[1:2]), # site.id and constituent columns just once
+    lapply(names(allModels), function(mod) { # model-specific columns
+      modSum <- switch( 
+        class(allModels[[mod]]), # slightly different call for each model type
+        loadReg2 = summarizeModel(allModels[[mod]]),
+        loadComp = summarizeModel(allModels[[mod]], newdata=siteQ, irregular.timesteps.ok=TRUE),
+        loadInterp = summarizeModel(allModels[[mod]], irregular.timesteps.ok=TRUE),
+        loadBeale = data_frame(site.id=siteMeta@site.id, constituent=siteMeta@constituent, nstrata=allModels[[mod]]$nstrata)
+      )
+      modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
+        setNames(paste0(mod, '.', names(.))) # add the "REG.", "CMP.", etc. prefix
+    })) %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  return(metrics)
+}
+
+#' Produce daily load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
+  predsLoad <- lapply(allModels, function(mod) {
+    (if(is(mod, 'loadComp')) {
+      suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
+        mutate(se.pred=NA)
+    } else if(is(mod, 'loadBeale')) {
+      data.frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
+    } else {
+      predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
+    }) %>%
+      mutate(
+        fit = fit * conv.load.rate,
+        se.pred = se.pred * conv.load.rate
+      )
+  })
+  return(predsLoad)
+}
+
+#' Produce annual load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating annual mean load estimates...")
+  annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0('   ', mod, '...'), appendLF = FALSE)
+    if(is(allModels[[mod]], 'loadReg2')) {
+      siteQ %>%
+        mutate(Water_Year=smwrBase::waterYear(siteQ[[dateColName]])) %>%
+        group_by(Water_Year) %>%
+        do({
+          # years with a lot of NaNs in se.pred really slow rloadest down. 
+          # skip years exceeding the criterion (inputs$regMaxNaNsPerYear)
+          siteYearQ <- .
+          dailyPreds <- predsLoad[[mod]] %>% 
+            mutate(Water_Year=smwrBase::waterYear(predsLoad[[mod]][[dateColName]])) %>%
+            filter(Water_Year == siteYearQ$Water_Year[1])
+          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerYear) {
+            message('skipping NaN-riddled ', as.character(siteYearQ$Water_Year[1]), '...', appendLF = FALSE)
+            data.frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
+          } else {
+            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+              select(-Water_Year)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='water year', allow.incomplete=TRUE)
+          }
+        }) %>%
+        ungroup() %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          n = Ndays,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          model = mod
+        ) %>%
+        select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data.frame(
+        Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
+        Flux_Rate = NA,
+        SE = NA,
+        CI_lower = NA,
+        CI_upper = NA,
+        model=mod,
+        stringsAsFactors=FALSE)
+    } else {
+      suppressWarnings(aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
+        mutate(
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod)
+    }
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  col_order <- c(
+    'site.id', 'constituent', 'Water_Year',
+    sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+  annualSummary <- annualSummary %>%
+    tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+    mutate(var=ordered(paste0(model, '.', var))) %>%
+    select(-model) %>%
+    tidyr::spread(var, val) %>%
+    select_(.dots=col_order)
+  annualSummary <- annualSummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(annualSummary)
+}
+
+#' Produce annual load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating multi-year mean load estimates...", appendLF = FALSE)
+  multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0(mod, '...'), appendLF=FALSE)
+    completeWaterYears <- annualSummary %>%
+      filter(
+        !is.na(.[[paste0(mod,'.n')]]), # .n=NA if water year was skipped for inputs$regMaxNaNsPerYear
+        .[[paste0(mod,'.n')]] >= inputs$minDaysPerYear) %>%
+      .$Water_Year
+    completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
+      filter(Water_Year %in% completeWaterYears)
+    (if(is(allModels[[mod]], 'loadReg2')) {
+      predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          years.record = length(unique(annualSummary$Water_Year)),            
+          years.complete = length(unique(completeWaterYears))
+        ) %>%
+        select(Flux_Rate, SE, CI_lower, CI_upper, years.record, years.complete)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data.frame(
+        Flux_Rate = allModels[[mod]]$rload_kg_y,
+        SE = allModels[[mod]]$serload_kg_y
+      ) %>%
+        mutate(
+          CI_lower = Flux_Rate - 1.96*SE,
+          CI_upper = Flux_Rate + 1.96*SE,
+          model=mod)
+    } else {
+      suppressWarnings(aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="mean water year", 
+        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE))
+    }) %>%
+      mutate(model=mod)
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  multiYearSummary <- reshape(
+    multiYearSummary, idvar = c('site.id','constituent'), direction = "wide", 
+    v.names = c("Flux_Rate", "SE", "CI_lower", "CI_upper",'years.record','years.complete'), timevar = "model")
+  multiYearSummary <- setNames( # replace the ".REG" or ".CMP" suffixes with "REG.", "CMP.", prefixes
+    multiYearSummary, 
+    sub(pattern=sprintf('(.*)\\.(%s)', paste0(names(allModels), collapse='|')), 
+        replacement='\\2.\\1', names(multiYearSummary)))
+  multiYearSummary <- multiYearSummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(multiYearSummary)
 }
 
 #' Combine 1-row summary files into a single multi-row file
