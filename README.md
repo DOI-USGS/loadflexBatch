@@ -8,6 +8,6 @@ To install or update `loadflex`, see the README at
 
 For a description of this repository's contents, and instructions on how to use 
 the scripts contained here, see 
-[blog.md](https://github.com/USGS-R/loadflexBatch/blob/master/blog.md).
+[batch_tutorial.html](https://usgs-r.github.io/loadflexBatch/batch_tutorial.html).
 
-Updated 5/29/2017
+Updated 7/6/2017
