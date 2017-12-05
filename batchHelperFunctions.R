@@ -234,8 +234,8 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
         model=mod,
         stringsAsFactors=FALSE)
     } else {
-      suppressWarnings(aggregateSolute(
-        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
+      loadflex:::aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
         mutate(
           SE = NA,
           CI_lower = NA,
@@ -304,9 +304,9 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
           years.record = length(unique(annualSummary$Water_Year)),            
           years.complete = length(unique(completeWaterYears)))
     } else {
-      suppressWarnings(aggregateSolute(
+      loadflex:::aggregateSolute(
         predsLoad[[mod]], siteMeta, agg.by="mean water year", 
-        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE))
+        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
     }) %>%
       mutate(model=mod)
   })) %>%
