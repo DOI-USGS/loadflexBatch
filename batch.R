@@ -279,7 +279,7 @@ for(constitName in constits) { # constitName='NO3'
         file = file.path(inputs$outputFolder, constitName, "plots", sprintf("%s.pdf", siteName)))
     
     # Add plots to the pdf we have open already
-    writePDFreport(loadModels = allModels, estdat = siteQ, siteMeta = siteMeta,
+    writePDFreport(loadModels = allModels, fitdat = siteConstit, estdat = siteQ, siteMeta = siteMeta,
                    loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
     
     # Close this constituent's pdf file
