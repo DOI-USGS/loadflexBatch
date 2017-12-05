@@ -7,6 +7,20 @@ combineSpecs <- function(inputs) {
   # read in the siteInfo file
   siteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
   
+  # check for the expected columns
+  expectedcols <- c("matching.site", "site.id", "site.name", "lat", "lon", "basin.area", "constituent", "units", "date.start", "date.end")
+  misscol <- setdiff(expectedcols, names(siteInfo))
+  if(length(misscol) > 0) stop(paste("missing columns in siteInfo file:", paste0("'", misscol, "'", collapse=", ")))
+  extracol <- setdiff(names(siteInfo), expectedcols)
+  if(length(extracol) > 0) warning(paste("unexpected columns in siteInfo file:", paste0("'", extracol, "'", collapse=", ")))
+  
+  # convert dates to Date
+  siteInfo <- mutate(
+    siteInfo,
+    date.start = as.Date(date.start, format='%Y-%m-%d'),
+    date.end = as.Date(date.end, format='%Y-%m-%d')
+  )
+  
   # identify the constituent and flow variable named in siteInfo and inputs
   obsVars <- unique(siteInfo$constituent)
   flow <- inputs$discharge

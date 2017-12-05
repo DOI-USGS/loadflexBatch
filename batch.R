@@ -82,6 +82,12 @@ for(constitName in constits) { # constitName='NO3'
     siteQ[[dateColName]] <- as.Date(siteQ[[dateColName]], format='%Y-%m-%d')
     siteConstit[[dateColName]] <- as.Date(siteConstit[[dateColName]], format='%Y-%m-%d')
     
+    # Filter to date ranges from siteInfo.csv if specified
+    if(!is.na(constitSiteInfo$date.start.FLOW)) siteQ <- siteQ[which(siteQ[[dateColName]] >= constitSiteInfo$date.start.FLOW),]
+    if(!is.na(constitSiteInfo$date.end.FLOW)) siteQ <- siteQ[which(siteQ[[dateColName]] <= constitSiteInfo$date.end.FLOW),]
+    if(!is.na(constitSiteInfo$date.start.CONC)) siteConstit <- siteConstit[which(siteConstit[[dateColName]] >= constitSiteInfo$date.start.CONC),]
+    if(!is.na(constitSiteInfo$date.end.CONC)) siteConstit <- siteConstit[which(siteConstit[[dateColName]] <= constitSiteInfo$date.end.CONC),]
+    
     # Deal with different discharge/consituent drainage areas. Compute discharge
     # for both the Q and constit data.frames as if at constituent site
     if(constitSiteInfo$basin.area.FLOW != constitSiteInfo$basin.area.CONC) {

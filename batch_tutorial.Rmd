@@ -32,6 +32,8 @@ opts_chunk$set(
 
 Features introduced since May 2017 are <span class="new">colored like this</span>.
 
+Features introduced since November 2017 are <span class="new2">colored like this</span>.
+
 ## Loadflex batch script
 
 The script at https://github.com/USGS-R/loadflexBatch/blob/master/batch.R automates running multiple load models for multiple sites and consitutents, using the `loadflex` package along with some features of `rloadest` <span class="new">and an R implementation of Beale's Ratio Estimator by Lillian Gorman-Sanisaca (based on Greg Schwarz's SAS code)</span>.  Model output is collated across all sites for easy analysis of input data, predicted loads, and model metrics.  This post will go through basic setup and use of the script.
@@ -108,6 +110,8 @@ The values in the `site.id` column are the names (without extensions) of the .cs
 An important function of the `siteInfo` file is to match up input files describing constituent concentrations and river discharges. Water quality and discharge are usually measured at the exact same location, but sometimes water quality is sampled somewhat downstream or upstream of the flow gage. The script handles this possible discrepancy by expecting two columns for site identifiers in the `siteInfo` file. The column called `site.id` describes precise site locations. If water quality is measured downstream or upstream of the flow gage, the concentration and discharge rows in the `siteInfo` file should have different `site.id` values. The column called `matching.site` is used to match up pairs of water quality and discharge sites that you want to combine into a load model. The `matching.site` should always be the same for the concentration row and discharge row to be combined. Once combined, discharge will be scaled according to `basin.area` to estimate what discharge would have been if measured exactly at the water quality monitoring site. 
 
 The values in the `constituent` column each name a constituent or discharge folder within the main input folder ("NO3", "PT", and "Q" in this example). Including discharge as a "constituent" makes this file more consise. The `units` column gives the units of measurement for each constituent-site combination.
+
+<span class="new2">The values in the `date.start` and `date.end` columns are dates in YYYY-MM-DD format if you want to limit a row's dataset to a specific date window, where `date.start` and `date.end` are the inclusive endpoints. Use `NA` in these fields for no filtering.</span>
 
 ### Configuration file
 
