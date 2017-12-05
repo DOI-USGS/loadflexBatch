@@ -7,6 +7,8 @@ siteQ$date<-as.Date(siteQ$date)
 siteConstit$date<-as.Date(siteConstit$date)
 
 minDaysPerYear<-345
+dateName<-"date"
+qName<-"Q"
 constitName<-"NO3"
 stationIdname<-"CODIGO_ESTACAO"
 hi_flow_percentile <- 80 #Default threshold for designating high-flow observations */
@@ -16,5 +18,5 @@ qTrans<- 35.31466 #constant transformation factor for converting Q to units of f
 loadUnits <- "kg"
 
 predict_ratio(
-  siteQ,siteConstit,minDaysPerYear,constitName,stationIdname,
+  siteQ,siteConstit,minDaysPerYear,dateName,qName,constitName,stationIdname,
   hi_flow_percentile,ratio_strata_nsamp_threshold,concTrans, qTrans)

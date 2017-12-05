@@ -8,7 +8,8 @@
 #'   columns can exist)
 #' @param minDaysPerYear minumim number of days indicating the year is full
 #' @param waterYear TRUE or FALSE
-#' @param constitName character indicating name of column with WQ data
+#' @param qName character indicating name of column with flow data
+#' @param constitName character indicating name of column with WQ?s data
 #' @param hi_flow_percentile number indicating threshold for designating 
 #'   high-flow observations
 #' @param ratio_strata_nsamp_threshold number indicating minimum number of 
@@ -17,20 +18,29 @@
 #'   mg/L
 #' @param qTrans constant transformation factor for converting Q to units of 
 #'   ft3/s
+#' @import dplyr for full_join, group_by, summarize, arrange
 #' @import lubridate for year()
 #' @import smwrBase for seasons()
 #' @return data.frame with station, Beale avg flux (kg/y), SE Beale avg flux 
 #'   (kg/y), number of strata for Beale avg flux
-predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,#stationIdname,
+predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,dateName,qName,constitName,#stationIdname,
                         hi_flow_percentile,ratio_strata_nsamp_threshold,concTrans, qTrans){
   
-  # copy data to clarify that we'll be modifying this df
-  ratio_predict<-siteQ
+  # rename for simplicity
+  siteQ$date <- siteQ[[dateName]]
+  siteQ$Q <- siteQ[[qName]]
+  siteConstit$date <- siteConstit[[dateName]]
+  siteConstit$Q <- siteConstit[[qName]]
+  siteConstit$constit <- siteConstit[[constitName]]
   
   # merge data so that ratio_predict includes conc observations on dates when those are available
-  ratio_predict<-merge(siteQ,siteConstit[,which(names(siteConstit)!="Q")],by="date",all=TRUE)
-  ratio_predict<-ratio_predict[order(ratio_predict$date),]
-  ratio_predict$constit<-eval(parse(text=paste("ratio_predict$",constitName,sep="")))
+  ratio_predict <- full_join(siteQ[c('date','Q')],siteConstit[c('date','Q','constit')],by=c('date','Q')) %>%
+    group_by(date) %>%
+    summarize(
+      Q = if(length(Q) > 1) Q[which(!is.na(constit))[1]] else Q,
+      constit = if(length(constit) > 1) constit[which(!is.na(constit))[1]] else constit
+    ) %>%
+    arrange(date)
   
   # get transformation factors
   qTrans<-ifelse(is.na(qTrans),1,qTrans) # why not just make the default be 1 in the function formals?
@@ -165,6 +175,30 @@ predict_ratio<-function(siteQ,siteConstit,minDaysPerYear,waterYear,constitName,#
     nstrata <- NA 
   }
   
+  # # Visualize
+  # library(ggplot2)
+  # ratio_predict$stratbin <- factor(stratbin)
+  # j <- 1
+  # stratgroup <- c(j, rep(NA, length(stratbin)-1))
+  # stratdiffs <- diff(stratbin)
+  # for(i in seq_along(stratdiffs)) {
+  #   if(stratdiffs[i] != 0) j <- j + 1
+  #   stratgroup[i+1] <- j
+  # }
+  # ratio_predict$stratgroup <- stratgroup
+  # ratio_predict$if_avpredict <- if_avpredict
+  # ratio_predict$adj_ratio <- adj_ratio[as.character(ratio_predict$stratbin)]
+  # ratio_predict$Lobs <- dload
+  # ratio_predict$Lest <- ratio_predict$Q * ratio_predict$adj_ratio
+  # ratio_subset <- ratio_predict[ratio_predict$date >= as.Date('2003-10-01') & ratio_predict$date < as.Date('2006-10-01'), ]
+  # ggplot(ratio_subset, aes(x=date, color=stratbin, group=stratgroup)) + geom_line(aes(y=Lest/Q, group=NA), color='grey95') +
+  #   geom_line(aes(y=Lest/Q), size=1) + geom_point(aes(y=Lobs/Q)) + theme_bw() + ylab(expression(C[est])) + xlab('')
+  # ggsave('BREconcs.png', width=10, height=2)
+  # ggplot(ratio_subset, aes(x=date, color=stratbin, group=stratgroup)) + geom_line(aes(y=Lest, group=NA), color='grey95') +
+  #   geom_line(aes(y=Lest)) + geom_point(aes(y=Lobs)) + theme_bw() + ylab(expression(L[est])) + xlab('')
+  # ggsave('BREfluxes.png', width=10, height=2)
+  
+  # Return
   ratio_load_param<-data.frame(rload,serload,nstrata) 
   names(ratio_load_param)[1:2]<-paste(names(ratio_load_param)[1:2],"_kg_y",sep="")
   return(ratio_load_param)

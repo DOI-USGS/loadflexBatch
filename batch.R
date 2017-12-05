@@ -82,6 +82,12 @@ for(constitName in constits) { # constitName='NO3'
     siteQ[[dateColName]] <- as.Date(siteQ[[dateColName]], format='%Y-%m-%d')
     siteConstit[[dateColName]] <- as.Date(siteConstit[[dateColName]], format='%Y-%m-%d')
     
+    # Filter to date ranges from siteInfo.csv if specified
+    if(!is.na(constitSiteInfo$date.start.FLOW)) siteQ <- siteQ[which(siteQ[[dateColName]] >= constitSiteInfo$date.start.FLOW),]
+    if(!is.na(constitSiteInfo$date.end.FLOW)) siteQ <- siteQ[which(siteQ[[dateColName]] <= constitSiteInfo$date.end.FLOW),]
+    if(!is.na(constitSiteInfo$date.start.CONC)) siteConstit <- siteConstit[which(siteConstit[[dateColName]] >= constitSiteInfo$date.start.CONC),]
+    if(!is.na(constitSiteInfo$date.end.CONC)) siteConstit <- siteConstit[which(siteConstit[[dateColName]] <= constitSiteInfo$date.end.CONC),]
+    
     # Deal with different discharge/consituent drainage areas. Compute discharge
     # for both the Q and constit data.frames as if at constituent site
     if(constitSiteInfo$basin.area.FLOW != constitSiteInfo$basin.area.CONC) {
@@ -208,6 +214,7 @@ for(constitName in constits) { # constitName='NO3'
     if('BRE' %in% inputs$models) {
       # Check for units assumptions of Beale's ratio estimator implementation
       if(siteMeta@conc.units != 'mg L^-1') stop("For Beale's ratio estimator, constituent units (in siteInfo file) must be 'mg L^-1'")
+      if(siteMeta@flow.units != 'm^3 s^-1') stop("For Beale's ratio estimator, flow units (in siteInfo file) must be m^3 s^-1'")
       if(inputs$loadUnits != 'kg') stop("For Beale's ratio estimator, loadUnits (in .yml) must be 'kg'")
       if(loadflex:::translateFreeformToUnitted(inputs$loadRateUnits) != 'kg y^-1') stop("For Beale's ratio estimator, loadRateUnits (in .yml) must be 'kg y^-1'")
       
@@ -217,7 +224,9 @@ for(constitName in constits) { # constitName='NO3'
         siteQ, siteConstit, # data
         inputs$minDaysPerYear,
         waterYear=TRUE,
-        constitName=siteMeta@constituent,
+        dateName=dateColName,
+        qName=qColName,
+        constitName=constitColName,
         hi_flow_percentile=80, #Default threshold for designating high-flow observations,
         ratio_strata_nsamp_threshold=10, #Default minimum number of observations required for inclusion of a stratum in the ratio estimate,
         concTrans=1, #constant transformation factor for converting to units of mg/L. NA=1 implies input is mg/L
@@ -276,7 +285,7 @@ for(constitName in constits) { # constitName='NO3'
         file = file.path(inputs$outputFolder, constitName, "plots", sprintf("%s.pdf", siteName)))
     
     # Add plots to the pdf we have open already
-    writePDFreport(loadModels = allModels, estdat = siteQ, siteMeta = siteMeta,
+    writePDFreport(loadModels = allModels, fitdat = siteConstit, estdat = siteQ, siteMeta = siteMeta,
                    loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
     
     # Close this constituent's pdf file
