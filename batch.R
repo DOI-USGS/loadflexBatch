@@ -208,6 +208,7 @@ for(constitName in constits) { # constitName='NO3'
     if('BRE' %in% inputs$models) {
       # Check for units assumptions of Beale's ratio estimator implementation
       if(siteMeta@conc.units != 'mg L^-1') stop("For Beale's ratio estimator, constituent units (in siteInfo file) must be 'mg L^-1'")
+      if(siteMeta@flow.units != 'm^3 s^-1') stop("For Beale's ratio estimator, flow units (in siteInfo file) must be m^3 s^-1'")
       if(inputs$loadUnits != 'kg') stop("For Beale's ratio estimator, loadUnits (in .yml) must be 'kg'")
       if(loadflex:::translateFreeformToUnitted(inputs$loadRateUnits) != 'kg y^-1') stop("For Beale's ratio estimator, loadRateUnits (in .yml) must be 'kg y^-1'")
       
@@ -217,7 +218,9 @@ for(constitName in constits) { # constitName='NO3'
         siteQ, siteConstit, # data
         inputs$minDaysPerYear,
         waterYear=TRUE,
-        constitName=siteMeta@constituent,
+        dateName=dateColName,
+        qName=qColName,
+        constitName=constitColName,
         hi_flow_percentile=80, #Default threshold for designating high-flow observations,
         ratio_strata_nsamp_threshold=10, #Default minimum number of observations required for inclusion of a stratum in the ratio estimate,
         concTrans=1, #constant transformation factor for converting to units of mg/L. NA=1 implies input is mg/L
