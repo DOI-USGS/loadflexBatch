@@ -1,3 +1,21 @@
+#' Read and validate the YAML control file
+#' @param control_file
+readInputs <- function(control_file) {
+  inputs <- yaml::yaml.load_file(control_file)
+  
+  expected <- c(
+    "inputFolder","constituents","discharge","date","siteInfo",
+    "models","resolutions","minDaysPerYear","regMaxNaNsPerMonth","regMaxNaNsPerSeason","regMaxNaNsPerYear",
+    "loadUnits","loadRateUnits",
+    "outputFolder","outputTimestamp")
+  miss <- setdiff(expected, names(inputs))
+  if(length(miss) > 0) stop(paste0("missing fields in control file '", control_file,"': ", paste0("'", miss, "'", collapse=", ")))
+  extra <- setdiff(names(inputs), expected)
+  if(length(extra) > 0) stop(paste0("missing fields in control file '", control_file,"': ", paste0("'", extra, "'", collapse=", ")))
+  
+  return(inputs)
+}
+
 #' Make a data.frame describing the constituent and flow sites and the data
 #' files for those variables
 #' 

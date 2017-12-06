@@ -6,10 +6,10 @@
 
 #### User inputs ####
 
-inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+control_file <- 'three_ANA_sites.yml'
 
 
-#### Load packages, read inputs, set up directories ####
+#### Load packages & code files, read inputs, set up directories ####
 
 library(dplyr)
 library(loadflex)
@@ -19,6 +19,7 @@ source('batchHelperFunctions.R') # functions that support this script are stored
 bealesFiles <- sapply(file.path('batch_Beales', c('altmod.R','collapse_stratbins.R','mod.R','nsamp.R','predict_ratio.R')), source)
 
 # Read the site info file and attach corresponding files
+inputs <- readInputs(control_file)
 allSiteInfo <- combineSpecs(inputs)
 siteFileSets <- matchFiles(allSiteInfo)
 
