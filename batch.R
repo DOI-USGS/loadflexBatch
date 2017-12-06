@@ -263,6 +263,15 @@ for(constitName in constits) { # constitName='NO3'
     # Predict daily fluxes
     predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate)
     
+    # Predict monthly fluxes
+    if('monthly' %in% inputs$resolutions) {
+      monthlySummary <- summarizeMonthly(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = monthlySummary, 
+        file = file.path(inputs$outputFolder, constitName, "monthly", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }
+    
     # Predict annual fluxes
     if(any(c('annual','multiYear') %in% inputs$resolutions)) {
       annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)

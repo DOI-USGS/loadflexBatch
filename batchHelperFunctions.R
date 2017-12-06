@@ -198,6 +198,87 @@ summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
   return(predsLoad)
 }
 
+#' Produce monthly load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating monthly mean load estimates...")
+  monthlySummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0('   ', mod, '...'), appendLF = FALSE)
+    if(is(allModels[[mod]], 'loadReg2')) {
+      siteQ %>%
+        mutate(Month=format(siteQ[[dateColName]], '%Y-%m')) %>%
+        group_by(Month) %>%
+        do({
+          # months with a lot of NaNs in se.pred really slow rloadest down. 
+          # skip months exceeding the criterion (inputs$regMaxNaNsPerMonth)
+          siteYearQ <- .
+          dailyPreds <- predsLoad[[mod]] %>% 
+            mutate(Month=format(predsLoad[[mod]][[dateColName]], '%Y-%m')) %>%
+            filter(Month == siteYearQ$Month[1])
+          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerMonth) {
+            message('skipping NaN-riddled ', as.character(siteYearQ$Month[1]), '...', appendLF = FALSE)
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          } else {
+            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+              select(-Month)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+          }
+        }) %>%
+        ungroup() %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          n = Ndays,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          model = mod
+        ) %>%
+        select(Month, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data_frame(
+        Month=unique(format(siteQ[[dateColName]], '%Y-%m')),
+        Flux_Rate = NA,
+        SE = NA,
+        n = NA,
+        CI_lower = NA,
+        CI_upper = NA,
+        model=mod)
+    } else {
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="month", format='flux rate')) %>%
+        mutate(
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod)
+    }
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  col_order <- c(
+    'site.id', 'constituent', 'Month',
+    sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+  monthlySummary <- monthlySummary %>%
+    tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+    mutate(var=ordered(paste0(model, '.', var))) %>%
+    select(-model) %>%
+    tidyr::spread(var, val) %>%
+    select_(.dots=col_order)
+  monthlySummary <- monthlySummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(monthlySummary)
+}
+
 #' Produce annual load estimates
 #' 
 #' @param allModels list of fitted model objects
