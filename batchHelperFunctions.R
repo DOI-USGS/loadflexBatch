@@ -279,6 +279,96 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
   return(monthlySummary)
 }
 
+#' Produce seasonal load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating seasonal mean load estimates...")
+  as_season <- function(dates) {
+    ends <- c('03/30','06/30','09/30','12/31')
+    starts <- c('01-01','04-01','07-01','10-01')
+    breaknames <- paste0(starts, '-', ends)
+    seasons <- smwrBase::seasons(dates, breaks=ends, Names=starts)
+    paste0(format(dates, "%Y"), '-', seasons)
+  }
+  seasonalSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0('   ', mod, '...'), appendLF = FALSE)
+    if(is(allModels[[mod]], 'loadReg2')) {
+      siteQ %>%
+        mutate(Season=as_season(siteQ[[dateColName]])) %>%
+        group_by(Season) %>%
+        do({
+          # months with a lot of NaNs in se.pred really slow rloadest down. 
+          # skip months exceeding the criterion (inputs$regMaxNaNsPerSeason)
+          siteYearQ <- .
+          dailyPreds <- predsLoad[[mod]] %>% 
+            mutate(Season=as_season(predsLoad[[mod]][[dateColName]])) %>%
+            filter(Season == siteYearQ$Season[1])
+          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
+            message('skipping NaN-riddled ', as.character(siteYearQ$Season[1]), '...', appendLF = FALSE)
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          } else {
+            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+              select(-Season)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+          }
+        }) %>%
+        ungroup() %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          n = Ndays,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          model = mod
+        ) %>%
+        select(Season, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data_frame(
+        Season=unique(as_season(siteQ[[dateColName]])),
+        Flux_Rate = NA,
+        SE = NA,
+        n = NA,
+        CI_lower = NA,
+        CI_upper = NA,
+        model=mod)
+    } else {
+      predsSeason <- predsLoad[[mod]] %>% mutate(Season=as_season(predsLoad[[mod]][[dateColName]]))
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsSeason,
+        siteMeta, custom=predsSeason['Season'], agg.by="Season", format='flux rate')) %>%
+        mutate(
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod) %>%
+        as_data_frame()
+    }
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  col_order <- c(
+    'site.id', 'constituent', 'Season',
+    sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+  seasonalSummary <- seasonalSummary %>%
+    tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+    mutate(var=ordered(paste0(model, '.', var))) %>%
+    select(-model) %>%
+    tidyr::spread(var, val) %>%
+    select_(.dots=col_order)
+  seasonalSummary <- seasonalSummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(seasonalSummary)
+}
 #' Produce annual load estimates
 #' 
 #' @param allModels list of fitted model objects

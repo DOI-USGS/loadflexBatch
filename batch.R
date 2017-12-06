@@ -272,6 +272,15 @@ for(constitName in constits) { # constitName='NO3'
         row.names=FALSE)
     }
     
+    # Predict seasonal fluxes
+    if('seasonal' %in% inputs$resolutions) {
+      seasonalSummary <- summarizeSeasonal(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = seasonalSummary, 
+        file = file.path(inputs$outputFolder, constitName, "seasonal", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }
+    
     # Predict annual fluxes
     if(any(c('annual','multiYear') %in% inputs$resolutions)) {
       annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
