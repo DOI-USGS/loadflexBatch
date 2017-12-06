@@ -26,7 +26,7 @@ combineSpecs <- function(inputs) {
   siteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
   
   # check for the expected columns
-  expectedcols <- c("matching.site", "site.id", "site.name", "lat", "lon", "basin.area", "constituent", "units", "date.start", "date.end")
+  expectedcols <- c("matching.site", "site.id", "site.name", "lat", "lon", "basin.area", "constituent", "consti.name", "units", "date.start", "date.end")
   misscol <- setdiff(expectedcols, names(siteInfo))
   if(length(misscol) > 0) stop(paste("missing columns in siteInfo file:", paste0("'", misscol, "'", collapse=", ")))
   extracol <- setdiff(names(siteInfo), expectedcols)

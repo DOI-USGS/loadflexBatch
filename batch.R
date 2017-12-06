@@ -133,7 +133,7 @@ for(constitName in constits) { # constitName='NO3'
     
     # Create a formal metadata object
     siteMeta <- metadata(
-      constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units.CONC, 
+      constituent = constitColName, consti.name = constitSiteInfo$consti.name.CONC, conc.units = constitSiteInfo$units.CONC, 
       flow = qColName, flow.units = constitSiteInfo$units.FLOW, load.units = inputs$loadUnits, 
       load.rate.units = paste(inputs$loadUnits, 'd^-1'),  # we'll use inputs$loadRateUnits at prediction time
       dates = dateColName,
