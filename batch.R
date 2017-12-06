@@ -32,7 +32,7 @@ if(inputs$outputTimestamp) {
 constits <- unique(siteFileSets$constituent.CONC)
 nConstits <- length(constits)
 outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), constits)
-outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs","annual","multiYear","modelMetrics","plots"), times=nConstits))
+outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs",inputs$resolutions,"modelMetrics","plots"), times=nConstits))
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 
@@ -264,19 +264,24 @@ for(constitName in constits) { # constitName='NO3'
     predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate)
     
     # Predict annual fluxes
-    annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
-    write.csv(
-      x = annualSummary, 
-      file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
-      row.names=FALSE)
+    if(any(c('annual','multiYear') %in% inputs$resolutions)) {
+      annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      if('annual' %in% inputs$resolutions) {
+        write.csv(
+          x = annualSummary, 
+          file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
+          row.names=FALSE)
+      }
+    }
     
     # Predict the multi-year average flux, complete years only
-    multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
-    write.csv(
-      x = multiYearSummary, 
-      file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
-      row.names=FALSE)
-    
+    if('multiYear' %in% inputs$resolutions) {
+      multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = multiYearSummary, 
+        file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }    
     
     #### Create plots  ####
     
