@@ -180,7 +180,7 @@ When preparing your files, remember that IDs for constituents, discharge, and si
 
 Open the batch script, `batch.R`, by clicking on it in the 'Files' pane in the lower right of your RStudio window.  There is a basic description of the file at the top. Below that is a command to read in the configuration file for one of the included example datasets. It looks like this:
 ```{r eval=FALSE}
-inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+control_file <- 'three_ANA_sites.yml'
 ```
 
 The default configuration file is `three_ANA_sites.yml`. To run another example (e.g., `Hirsch_sites.yml`) or your own file, edit the file name in the above line of the `batch.R` script. 
