@@ -6,10 +6,10 @@
 
 #### User inputs ####
 
-inputs <- yaml::yaml.load_file('three_ANA_sites.yml')
+control_file <- 'three_ANA_sites.yml'
 
 
-#### Load packages, read inputs, set up directories ####
+#### Load packages & code files, read inputs, set up directories ####
 
 library(dplyr)
 library(loadflex)
@@ -19,6 +19,7 @@ source('batchHelperFunctions.R') # functions that support this script are stored
 bealesFiles <- sapply(file.path('batch_Beales', c('altmod.R','collapse_stratbins.R','mod.R','nsamp.R','predict_ratio.R')), source)
 
 # Read the site info file and attach corresponding files
+inputs <- readInputs(control_file)
 allSiteInfo <- combineSpecs(inputs)
 siteFileSets <- matchFiles(allSiteInfo)
 
@@ -31,7 +32,7 @@ if(inputs$outputTimestamp) {
 constits <- unique(siteFileSets$constituent.CONC)
 nConstits <- length(constits)
 outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), constits)
-outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs","annual","multiYear","modelMetrics","plots"), times=nConstits))
+outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs",inputs$resolutions,"modelMetrics","plots"), times=nConstits))
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 
@@ -132,7 +133,7 @@ for(constitName in constits) { # constitName='NO3'
     
     # Create a formal metadata object
     siteMeta <- metadata(
-      constituent = constitColName, consti.name = constitColName, conc.units = constitSiteInfo$units.CONC, 
+      constituent = constitColName, consti.name = constitSiteInfo$consti.name.CONC, conc.units = constitSiteInfo$units.CONC, 
       flow = qColName, flow.units = constitSiteInfo$units.FLOW, load.units = inputs$loadUnits, 
       load.rate.units = paste(inputs$loadUnits, 'd^-1'),  # we'll use inputs$loadRateUnits at prediction time
       dates = dateColName,
@@ -262,20 +263,43 @@ for(constitName in constits) { # constitName='NO3'
     # Predict daily fluxes
     predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate)
     
+    # Predict monthly fluxes
+    if('monthly' %in% inputs$resolutions) {
+      monthlySummary <- summarizeMonthly(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = monthlySummary, 
+        file = file.path(inputs$outputFolder, constitName, "monthly", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }
+    
+    # Predict seasonal fluxes
+    if('seasonal' %in% inputs$resolutions) {
+      seasonalSummary <- summarizeSeasonal(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = seasonalSummary, 
+        file = file.path(inputs$outputFolder, constitName, "seasonal", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }
+    
     # Predict annual fluxes
-    annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
-    write.csv(
-      x = annualSummary, 
-      file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
-      row.names=FALSE)
+    if(any(c('annual','multiYear') %in% inputs$resolutions)) {
+      annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      if('annual' %in% inputs$resolutions) {
+        write.csv(
+          x = annualSummary, 
+          file = file.path(inputs$outputFolder, constitName, "annual", paste0(matchingSite, '.csv')),
+          row.names=FALSE)
+      }
+    }
     
     # Predict the multi-year average flux, complete years only
-    multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
-    write.csv(
-      x = multiYearSummary, 
-      file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
-      row.names=FALSE)
-    
+    if('multiYear' %in% inputs$resolutions) {
+      multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      write.csv(
+        x = multiYearSummary, 
+        file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
+        row.names=FALSE)
+    }    
     
     #### Create plots  ####
     

@@ -1,3 +1,21 @@
+#' Read and validate the YAML control file
+#' @param control_file
+readInputs <- function(control_file) {
+  inputs <- yaml::yaml.load_file(control_file)
+  
+  expected <- c(
+    "inputFolder","constituents","discharge","date","siteInfo",
+    "models","resolutions","minDaysPerYear","regMaxNaNsPerMonth","regMaxNaNsPerSeason","regMaxNaNsPerYear",
+    "loadUnits","loadRateUnits",
+    "outputFolder","outputTimestamp")
+  miss <- setdiff(expected, names(inputs))
+  if(length(miss) > 0) stop(paste0("missing fields in control file '", control_file,"': ", paste0("'", miss, "'", collapse=", ")))
+  extra <- setdiff(names(inputs), expected)
+  if(length(extra) > 0) stop(paste0("missing fields in control file '", control_file,"': ", paste0("'", extra, "'", collapse=", ")))
+  
+  return(inputs)
+}
+
 #' Make a data.frame describing the constituent and flow sites and the data
 #' files for those variables
 #' 
@@ -8,11 +26,11 @@ combineSpecs <- function(inputs) {
   siteInfo <- read.csv(file.path(inputs$inputFolder, inputs$siteInfo), stringsAsFactors = FALSE)
   
   # check for the expected columns
-  expectedcols <- c("matching.site", "site.id", "site.name", "lat", "lon", "basin.area", "constituent", "units", "date.start", "date.end")
+  expectedcols <- c("matching.site", "site.id", "site.name", "lat", "lon", "basin.area", "constituent", "consti.name", "units", "date.start", "date.end")
   misscol <- setdiff(expectedcols, names(siteInfo))
   if(length(misscol) > 0) stop(paste("missing columns in siteInfo file:", paste0("'", misscol, "'", collapse=", ")))
   extracol <- setdiff(names(siteInfo), expectedcols)
-  if(length(extracol) > 0) warning(paste("unexpected columns in siteInfo file:", paste0("'", extracol, "'", collapse=", ")))
+  if(length(extracol) > 0) stop(paste("unexpected columns in siteInfo file:", paste0("'", extracol, "'", collapse=", ")))
   
   # convert dates to Date
   siteInfo <- mutate(
@@ -145,7 +163,7 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
     )
   }
   metrics <- bind_cols(
-    data.frame(summarize_model(allModels[[1]])[1:2]), # site.id and constituent columns just once
+    as_data_frame(summarize_model(allModels[[1]])[1:2]), # site.id and constituent columns just once
     lapply(names(allModels), function(mod) { # model-specific columns
       modSum <- summarize_model(allModels[[mod]])
       modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
@@ -168,7 +186,7 @@ summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
       suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
         mutate(se.pred=NA)
     } else if(is(mod, 'loadBeale')) {
-      data.frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
+      data_frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
     } else {
       predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
     }) %>%
@@ -180,6 +198,177 @@ summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
   return(predsLoad)
 }
 
+#' Produce monthly load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating monthly mean load estimates...")
+  monthlySummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0('   ', mod, '...'), appendLF = FALSE)
+    if(is(allModels[[mod]], 'loadReg2')) {
+      siteQ %>%
+        mutate(Month=format(siteQ[[dateColName]], '%Y-%m')) %>%
+        group_by(Month) %>%
+        do({
+          # months with a lot of NaNs in se.pred really slow rloadest down. 
+          # skip months exceeding the criterion (inputs$regMaxNaNsPerMonth)
+          siteYearQ <- .
+          dailyPreds <- predsLoad[[mod]] %>% 
+            mutate(Month=format(predsLoad[[mod]][[dateColName]], '%Y-%m')) %>%
+            filter(Month == siteYearQ$Month[1])
+          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerMonth) {
+            message('skipping NaN-riddled ', as.character(siteYearQ$Month[1]), '...', appendLF = FALSE)
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          } else {
+            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+              select(-Month)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+          }
+        }) %>%
+        ungroup() %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          n = Ndays,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          model = mod
+        ) %>%
+        select(Month, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data_frame(
+        Month=unique(format(siteQ[[dateColName]], '%Y-%m')),
+        Flux_Rate = NA,
+        SE = NA,
+        n = NA,
+        CI_lower = NA,
+        CI_upper = NA,
+        model=mod)
+    } else {
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="month", format='flux rate')) %>%
+        mutate(
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod)
+    }
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  col_order <- c(
+    'site.id', 'constituent', 'Month',
+    sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+  monthlySummary <- monthlySummary %>%
+    tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+    mutate(var=ordered(paste0(model, '.', var))) %>%
+    select(-model) %>%
+    tidyr::spread(var, val) %>%
+    select_(.dots=col_order)
+  monthlySummary <- monthlySummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(monthlySummary)
+}
+
+#' Produce seasonal load estimates
+#' 
+#' @param allModels list of fitted model objects
+#' @param predsLoad list of data.frames of daily predictions
+#' @param inputs list of configuration inputs
+#' @param siteQ data.frame of dates and discharges
+#' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
+#' @param loadflexVersion version of loadflex being used
+#' @param batchStartTime datetime this run was started
+summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+  message(" * generating seasonal mean load estimates...")
+  as_season <- function(dates) {
+    ends <- c('03/30','06/30','09/30','12/31')
+    starts <- c('01-01','04-01','07-01','10-01')
+    breaknames <- paste0(starts, '-', ends)
+    seasons <- smwrBase::seasons(dates, breaks=ends, Names=starts)
+    paste0(format(dates, "%Y"), '-', seasons)
+  }
+  seasonalSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
+    message(paste0('   ', mod, '...'), appendLF = FALSE)
+    if(is(allModels[[mod]], 'loadReg2')) {
+      siteQ %>%
+        mutate(Season=as_season(siteQ[[dateColName]])) %>%
+        group_by(Season) %>%
+        do({
+          # months with a lot of NaNs in se.pred really slow rloadest down. 
+          # skip months exceeding the criterion (inputs$regMaxNaNsPerSeason)
+          siteYearQ <- .
+          dailyPreds <- predsLoad[[mod]] %>% 
+            mutate(Season=as_season(predsLoad[[mod]][[dateColName]])) %>%
+            filter(Season == siteYearQ$Season[1])
+          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
+            message('skipping NaN-riddled ', as.character(siteYearQ$Season[1]), '...', appendLF = FALSE)
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          } else {
+            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+              select(-Season)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+          }
+        }) %>%
+        ungroup() %>%
+        mutate(
+          Flux_Rate = Flux * conv.load.rate,
+          SE = SEP * conv.load.rate,
+          n = Ndays,
+          CI_lower = L95 * conv.load.rate,
+          CI_upper = U95 * conv.load.rate,
+          model = mod
+        ) %>%
+        select(Season, Flux_Rate, SE, n, CI_lower, CI_upper, model)
+    } else if(is(allModels[[mod]], 'loadBeale')) {
+      data_frame(
+        Season=unique(as_season(siteQ[[dateColName]])),
+        Flux_Rate = NA,
+        SE = NA,
+        n = NA,
+        CI_lower = NA,
+        CI_upper = NA,
+        model=mod)
+    } else {
+      predsSeason <- predsLoad[[mod]] %>% mutate(Season=as_season(predsLoad[[mod]][[dateColName]]))
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsSeason,
+        siteMeta, custom=predsSeason['Season'], agg.by="Season", format='flux rate')) %>%
+        mutate(
+          SE = NA,
+          CI_lower = NA,
+          CI_upper = NA,
+          model=mod) %>%
+        as_data_frame()
+    }
+  })) %>%
+    mutate(site.id=getInfo(siteMeta, 'site.id'), constituent=getInfo(siteMeta, 'constituent')) %>%
+    select(site.id, constituent, model, everything())
+  col_order <- c(
+    'site.id', 'constituent', 'Season',
+    sapply(names(allModels), function(mod) paste0(mod, '.', c('n', 'Flux_Rate', 'SE', 'CI_lower', 'CI_upper'))))
+  seasonalSummary <- seasonalSummary %>%
+    tidyr::gather(var, val, Flux_Rate, SE, n, CI_lower, CI_upper) %>%
+    mutate(var=ordered(paste0(model, '.', var))) %>%
+    select(-model) %>%
+    tidyr::spread(var, val) %>%
+    select_(.dots=col_order)
+  seasonalSummary <- seasonalSummary %>%
+    mutate(
+      loadflex.version = loadflexVersion, 
+      run.date = batchStartTime)
+  message('done!')
+  return(seasonalSummary)
+}
 #' Produce annual load estimates
 #' 
 #' @param allModels list of fitted model objects
@@ -206,7 +395,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
             filter(Water_Year == siteYearQ$Water_Year[1])
           if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerYear) {
             message('skipping NaN-riddled ', as.character(siteYearQ$Water_Year[1]), '...', appendLF = FALSE)
-            data.frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Water_Year)
@@ -224,18 +413,17 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
         ) %>%
         select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
     } else if(is(allModels[[mod]], 'loadBeale')) {
-      data.frame(
+      data_frame(
         Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
         Flux_Rate = NA,
         SE = NA,
         n = NA,
         CI_lower = NA,
         CI_upper = NA,
-        model=mod,
-        stringsAsFactors=FALSE)
+        model=mod)
     } else {
-      loadflex:::aggregateSolute(
-        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
         mutate(
           SE = NA,
           CI_lower = NA,
@@ -294,7 +482,7 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
         ) %>%
         select(Flux_Rate, SE, CI_lower, CI_upper, years.record, years.complete)
     } else if(is(allModels[[mod]], 'loadBeale')) {
-      data.frame(
+      data_frame(
         Flux_Rate = allModels[[mod]]$rload_kg_y,
         SE = allModels[[mod]]$serload_kg_y
       ) %>%
@@ -304,9 +492,9 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
           years.record = length(unique(annualSummary$Water_Year)),            
           years.complete = length(unique(completeWaterYears)))
     } else {
-      loadflex:::aggregateSolute(
+      suppressWarnings(loadflex:::aggregateSolute(
         predsLoad[[mod]], siteMeta, agg.by="mean water year", 
-        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
+        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE))
     }) %>%
       mutate(model=mod)
   })) %>%
@@ -405,13 +593,12 @@ summarizePlots <- function(constitSiteInfo, outputFolder) {
 writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
   
   # make plots. the first page is redundant across models
-  modelNames <- data.frame(
+  modelNames <- data_frame(
     short = c("RL5", "RL7", "INT", "CMP"),
     long = c("Regression Model L5 (rloadest 5 parameter)",
              "Regression Model L7 (rloadest 7 parameter)",
              "Interpolation Model (rectangular)",
-             "Composite Model (rloadest + interpolation)"),
-    stringsAsFactors = FALSE)
+             "Composite Model (rloadest + interpolation)"))
   
   # page 1: input data with censoring
   eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.

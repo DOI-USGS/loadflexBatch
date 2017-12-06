@@ -11,7 +11,10 @@ siteInfo: "siteInfo.csv" # name of the csv file inside inputFolder containing si
 
 # Analysis specifications
 models: ["RL5","RL7","CMP","INT","BRE"] # models to run; choose any/all of ["RL5","RL7","CMP","INT","BRE"]
+resolutions: ["monthly","seasonal","annual","multiYear"] # types of predictions to generate: choose any/all of ["monthly","seasonal","annual","multiYear"]
 minDaysPerYear: 345 # number of days required for a year to be included in the multi-year average
+regMaxNaNsPerMonth: 0 # affects rloadest models only: max NaN days allowed for including a month in monthly loads; estimates with NaNs can be very slow
+regMaxNaNsPerSeason: 0 # affects rloadest models only: max NaN days allowed for including a season in seasonal loads; estimates with NaNs can be very slow
 regMaxNaNsPerYear: 0 # affects rloadest models only: max NaN days allowed for including year in annual or multi-year loads; estimates with NaNs can be very slow
 
 # Units for output
