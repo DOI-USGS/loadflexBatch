@@ -30,7 +30,7 @@ combineSpecs <- function(inputs) {
   misscol <- setdiff(expectedcols, names(siteInfo))
   if(length(misscol) > 0) stop(paste("missing columns in siteInfo file:", paste0("'", misscol, "'", collapse=", ")))
   extracol <- setdiff(names(siteInfo), expectedcols)
-  if(length(extracol) > 0) warning(paste("unexpected columns in siteInfo file:", paste0("'", extracol, "'", collapse=", ")))
+  if(length(extracol) > 0) stop(paste("unexpected columns in siteInfo file:", paste0("'", extracol, "'", collapse=", ")))
   
   # convert dates to Date
   siteInfo <- mutate(
@@ -163,7 +163,7 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
     )
   }
   metrics <- bind_cols(
-    data.frame(summarize_model(allModels[[1]])[1:2]), # site.id and constituent columns just once
+    as_data_frame(summarize_model(allModels[[1]])[1:2]), # site.id and constituent columns just once
     lapply(names(allModels), function(mod) { # model-specific columns
       modSum <- summarize_model(allModels[[mod]])
       modSum[-(1:2)] %>% # don't duplicate the site.id and constituent columns
@@ -186,7 +186,7 @@ summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
       suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
         mutate(se.pred=NA)
     } else if(is(mod, 'loadBeale')) {
-      data.frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
+      data_frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
     } else {
       predictSolute(mod, "flux", siteQ, se.pred=TRUE, date=TRUE)
     }) %>%
@@ -224,7 +224,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
             filter(Water_Year == siteYearQ$Water_Year[1])
           if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerYear) {
             message('skipping NaN-riddled ', as.character(siteYearQ$Water_Year[1]), '...', appendLF = FALSE)
-            data.frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
+            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Water_Year)
@@ -242,18 +242,17 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
         ) %>%
         select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
     } else if(is(allModels[[mod]], 'loadBeale')) {
-      data.frame(
+      data_frame(
         Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
         Flux_Rate = NA,
         SE = NA,
         n = NA,
         CI_lower = NA,
         CI_upper = NA,
-        model=mod,
-        stringsAsFactors=FALSE)
+        model=mod)
     } else {
-      loadflex:::aggregateSolute(
-        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate') %>%
+      suppressWarnings(loadflex:::aggregateSolute(
+        predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
         mutate(
           SE = NA,
           CI_lower = NA,
@@ -312,7 +311,7 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
         ) %>%
         select(Flux_Rate, SE, CI_lower, CI_upper, years.record, years.complete)
     } else if(is(allModels[[mod]], 'loadBeale')) {
-      data.frame(
+      data_frame(
         Flux_Rate = allModels[[mod]]$rload_kg_y,
         SE = allModels[[mod]]$serload_kg_y
       ) %>%
@@ -322,9 +321,9 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
           years.record = length(unique(annualSummary$Water_Year)),            
           years.complete = length(unique(completeWaterYears)))
     } else {
-      loadflex:::aggregateSolute(
+      suppressWarnings(loadflex:::aggregateSolute(
         predsLoad[[mod]], siteMeta, agg.by="mean water year", 
-        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE)
+        format='flux rate', min.n=inputs$minDaysPerYear, ci.agg=FALSE, se.agg=FALSE))
     }) %>%
       mutate(model=mod)
   })) %>%
@@ -423,13 +422,12 @@ summarizePlots <- function(constitSiteInfo, outputFolder) {
 writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
   
   # make plots. the first page is redundant across models
-  modelNames <- data.frame(
+  modelNames <- data_frame(
     short = c("RL5", "RL7", "INT", "CMP"),
     long = c("Regression Model L5 (rloadest 5 parameter)",
              "Regression Model L7 (rloadest 7 parameter)",
              "Interpolation Model (rectangular)",
-             "Composite Model (rloadest + interpolation)"),
-    stringsAsFactors = FALSE)
+             "Composite Model (rloadest + interpolation)"))
   
   # page 1: input data with censoring
   eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
