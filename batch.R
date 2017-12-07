@@ -41,7 +41,12 @@ sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 # Loop over each constituent, creating a pdf of all sites and models for that 
 # constituent (plus many smaller, site- and model-specific files)
 loadflexVersion <- as.character(packageVersion('loadflex'))
-batchStartTime <- Sys.time() # for GitHub repo use "2017-03-22 14:31:59"
+batchStartTime <- if(isTRUE(options('loadflexBatchDev')[[1]])) {
+  # options('loadflexBatchDev'=TRUE)
+  "2017-12-12 14:31:59" # for TESTING loadflexbatch & git diffing, we want fixed timestamp; set options as above
+} else { 
+  Sys.time() # for USING loadflexBatch, we usually want to know the current time
+}
 message('running loadflex version ', loadflexVersion, ' in batch mode at ', batchStartTime)
 for(constitName in constits) { # constitName='NO3'
   
