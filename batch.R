@@ -215,7 +215,7 @@ for(constitName in constits) { # constitName='NO3'
         pred.format = 'conc')
       comp <- loadComp(
         reg.model = rloadest5nocens, interp.format = "conc", interp.function = rectangularInterpolation, 
-        interp.data = RLrawdata, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
+        interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
       allModels[['CMP']] <- comp
     }
     
