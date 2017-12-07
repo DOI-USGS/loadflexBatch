@@ -153,27 +153,33 @@ for(constitName in constits) { # constitName='NO3'
     
     if(any(c('RL5','RL7') %in% inputs$models)) {
       # Fit the rloadest model[s] (use the smwrQW censoring format)
-      siteConstitRloadest <- setNames(
+      RLrawdata <- setNames(
         siteConstit[c(dateColName, qwconstitColName, qColName)],
         c(dateColName, constitColName, qColName))
+      Qadj <- rloadest:::loadestQadj(siteConstit[[qColName]])
+      Tadj <- rloadest:::loadestTadj(siteConstit[[dateColName]])
+      RLpreppeddata <- rloadest:::setXLDat(data=siteConstit, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+        as.data.frame()
+      siteConstitRloadest <- as.data.frame(c(as.list(RLpreppeddata), as.list(RLrawdata)))
       if('RL5' %in% inputs$models) {
         # L5: center(log(FLOW)) + center(dectime(DATE)) + fourier(DATE)
-        loadRegFormulaL5 <- formula(paste(constitColName,"~model(7)"))
+        loadRegFormulaL5 <- formula('NO3 ~ 1 + lnQ + DECTIME + sin.DECTIME + cos.DECTIME')
         rloadest5param <- loadReg2(
           loadReg(
-            loadRegFormulaL5, data = siteConstitRloadest, 
+            loadRegFormulaL5, data = siteConstitRloadest,
             flow = qColName, dates = dateColName, time.step = "day",
             flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
             conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
             load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
           site.id = getInfo(siteMeta, 'site.id'),
           pred.format = 'conc')
+        
         allModels[['RL5']] <- rloadest5param
       }
       
       if('RL7' %in% inputs$models) {
         # L7: quadratic(log(FLOW)) + quadratic(dectime(DATE)) + fourier(DATE)
-        loadRegFormulaL7 <- formula(paste(constitColName,"~model(9)"))
+        loadRegFormulaL7 <- formula('NO3 ~ 1 + lnQ + lnQ2 + DECTIME + DECTIME2 + sin.DECTIME + cos.DECTIME')
         rloadest7param <- loadReg2(
           loadReg(
             loadRegFormulaL7, data = siteConstitRloadest, 
@@ -183,7 +189,7 @@ for(constitName in constits) { # constitName='NO3'
             load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
           site.id = getInfo(siteMeta, 'site.id'),
           pred.format = 'conc')
-        allModels[['RL7']] <- rloadest7param
+       allModels[['RL7']] <- rloadest7param
       }
     }
     
@@ -197,9 +203,10 @@ for(constitName in constits) { # constitName='NO3'
     
     if('CMP' %in% inputs$models) {
       # Fit the composite model (with rloadest model that doesn't do censoring)
+      loadRegFormulaCMP <- formula(paste(constitColName,"~model(7)"))
       rloadest5nocens <- loadReg2( # only difference is the data (non-censored)
         loadReg(
-          loadRegFormulaL5, data = siteConstit, 
+          loadRegFormulaCMP, data = siteConstit, 
           flow = qColName, dates = dateColName, time.step = "day",
           flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
           conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -208,7 +215,7 @@ for(constitName in constits) { # constitName='NO3'
         pred.format = 'conc')
       comp <- loadComp(
         reg.model = rloadest5nocens, interp.format = "conc", interp.function = rectangularInterpolation, 
-        interp.data = siteConstit, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
+        interp.data = RLrawdata, store=c('data','fitting.function')) # leave out store='uncertainty' to save 30 secs
       allModels[['CMP']] <- comp
     }
     
