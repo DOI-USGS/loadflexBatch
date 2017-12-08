@@ -41,7 +41,12 @@ sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 # Loop over each constituent, creating a pdf of all sites and models for that 
 # constituent (plus many smaller, site- and model-specific files)
 loadflexVersion <- as.character(packageVersion('loadflex'))
-batchStartTime <- Sys.time() # for GitHub repo use "2017-03-22 14:31:59"
+batchStartTime <- if(isTRUE(options('loadflexBatchDev')[[1]])) {
+  # options('loadflexBatchDev'=TRUE)
+  "2017-12-12 14:31:59" # for TESTING loadflexbatch & git diffing, we want fixed timestamp; set options as above
+} else { 
+  Sys.time() # for USING loadflexBatch, we usually want to know the current time
+}
 message('running loadflex version ', loadflexVersion, ' in batch mode at ', batchStartTime)
 for(constitName in constits) { # constitName='NO3'
   
@@ -151,40 +156,47 @@ for(constitName in constits) { # constitName='NO3'
     allModels <- setNames(as.list(rep(NA, length(inputs$models))), inputs$models)
     # list(RL5=rloadest5param, RL7=rloadest7param, CMP=comp, INT=interpRect, BRE=beales)[inputs$models] #, REGU=rloadest5nocens
     
-    if(any(c('RL5','RL7') %in% inputs$models)) {
-      # Fit the rloadest model[s] (use the smwrQW censoring format)
-      siteConstitRloadest <- setNames(
-        siteConstit[c(dateColName, qwconstitColName, qColName)],
-        c(dateColName, constitColName, qColName))
-      if('RL5' %in% inputs$models) {
-        # L5: center(log(FLOW)) + center(dectime(DATE)) + fourier(DATE)
-        loadRegFormulaL5 <- formula(paste(constitColName,"~model(7)"))
-        rloadest5param <- loadReg2(
-          loadReg(
-            loadRegFormulaL5, data = siteConstitRloadest, 
-            flow = qColName, dates = dateColName, time.step = "day",
-            flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
-            conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
-            load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
-          site.id = getInfo(siteMeta, 'site.id'),
-          pred.format = 'conc')
-        allModels[['RL5']] <- rloadest5param
-      }
+    # Prepare a censored & expanded version of the data, which we'll use for
+    # plotting Input Data even if we don't fit an RL5 or RL7 model
+    RLrawdata <- setNames(
+      siteConstit[c(dateColName, qwconstitColName, qColName)],
+      c(dateColName, constitColName, qColName))
+    Qadj <- rloadest:::loadestQadj(siteConstit[[qColName]])
+    Tadj <- rloadest:::loadestTadj(siteConstit[[dateColName]])
+    RLpreppeddata <- rloadest:::setXLDat(data=siteConstit, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+      as.data.frame()
+    siteConstitRloadest <- as.data.frame(c(as.list(RLpreppeddata), as.list(RLrawdata)))
+    
+    # Fit the rloadest model[s] (use the smwrQW censoring format)
+    if('RL5' %in% inputs$models) {
+      # L5: center(log(FLOW)) + center(dectime(DATE)) + fourier(DATE)
+      loadRegFormulaL5 <- formula(paste(constitColName, '~ 1 + lnQ + DECTIME + sin.DECTIME + cos.DECTIME'))
+      rloadest5param <- loadReg2(
+        loadReg(
+          loadRegFormulaL5, data = siteConstitRloadest,
+          flow = qColName, dates = dateColName, time.step = "day",
+          flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
+          conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
+          load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
+        site.id = getInfo(siteMeta, 'site.id'),
+        pred.format = 'conc')
       
-      if('RL7' %in% inputs$models) {
-        # L7: quadratic(log(FLOW)) + quadratic(dectime(DATE)) + fourier(DATE)
-        loadRegFormulaL7 <- formula(paste(constitColName,"~model(9)"))
-        rloadest7param <- loadReg2(
-          loadReg(
-            loadRegFormulaL7, data = siteConstitRloadest, 
-            flow = qColName, dates = dateColName, time.step = "day",
-            flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
-            conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
-            load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
-          site.id = getInfo(siteMeta, 'site.id'),
-          pred.format = 'conc')
-        allModels[['RL7']] <- rloadest7param
-      }
+      allModels[['RL5']] <- rloadest5param
+    }
+    
+    if('RL7' %in% inputs$models) {
+      # L7: quadratic(log(FLOW)) + quadratic(dectime(DATE)) + fourier(DATE)
+      loadRegFormulaL7 <- formula(paste(constitColName, '~ 1 + lnQ + lnQ2 + DECTIME + DECTIME2 + sin.DECTIME + cos.DECTIME'))
+      rloadest7param <- loadReg2(
+        loadReg(
+          loadRegFormulaL7, data = siteConstitRloadest, 
+          flow = qColName, dates = dateColName, time.step = "day",
+          flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
+          conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
+          load.units = getUnits(siteMeta, 'flux', format = "rloadest")), 
+        site.id = getInfo(siteMeta, 'site.id'),
+        pred.format = 'conc')
+      allModels[['RL7']] <- rloadest7param
     }
     
     if('INT' %in% inputs$models) {
@@ -197,9 +209,10 @@ for(constitName in constits) { # constitName='NO3'
     
     if('CMP' %in% inputs$models) {
       # Fit the composite model (with rloadest model that doesn't do censoring)
+      loadRegFormulaCMP <- formula(paste(constitColName,"~model(7)"))
       rloadest5nocens <- loadReg2( # only difference is the data (non-censored)
         loadReg(
-          loadRegFormulaL5, data = siteConstit, 
+          loadRegFormulaCMP, data = siteConstit, 
           flow = qColName, dates = dateColName, time.step = "day",
           flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
           conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -309,7 +322,7 @@ for(constitName in constits) { # constitName='NO3'
         file = file.path(inputs$outputFolder, constitName, "plots", sprintf("%s.pdf", siteName)))
     
     # Add plots to the pdf we have open already
-    writePDFreport(loadModels = allModels, fitdat = siteConstit, estdat = siteQ, siteMeta = siteMeta,
+    writePDFreport(loadModels = allModels, fitdat = siteConstit, censdat = siteConstitRloadest, estdat = siteQ, siteMeta = siteMeta,
                    loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
     
     # Close this constituent's pdf file

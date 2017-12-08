@@ -182,9 +182,16 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
 summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
   predsLoad <- lapply(allModels, function(mod) {
-    (if(is(mod, 'loadComp')) {
+    (if(is(mod, 'loadReg2')) {
+      Qadj <- getFittedModel(mod)$Qadj
+      Tadj <- getFittedModel(mod)$Tadj
+      RLsiteQ <- rloadest:::setXLDat(data=siteQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+        as.data.frame() %>%
+        bind_cols(siteQ)
+      predictSolute(mod, "flux", RLsiteQ, se.pred=TRUE, date=TRUE)
+    } else if(is(mod, 'loadComp')) {
       suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
-        mutate(se.pred=NA)
+        mutate(se.pred=NA) # avoiding se.pred not because we can't compute it but because it's slow to compute the MSE and we won't be using se.pred
     } else if(is(mod, 'loadBeale')) {
       data_frame(date=siteQ[[dateColName]], fit=NA, se.pred=NA)
     } else {
@@ -226,9 +233,17 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
             message('skipping NaN-riddled ', as.character(siteYearQ$Month[1]), '...', appendLF = FALSE)
             data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
           } else {
+            # filter to non-NA se.preds
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Month)
-            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
+            Qadj <- getFittedModel(allModels[[mod]])$Qadj
+            Tadj <- getFittedModel(allModels[[mod]])$Tadj
+            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+              as.data.frame() %>%
+              bind_cols(siteYearQ)
+            # pass filtered data for fully-specified equation to model
+            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='total', allow.incomplete=TRUE)
           }
         }) %>%
         ungroup() %>%
@@ -254,6 +269,7 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
       suppressWarnings(loadflex:::aggregateSolute(
         predsLoad[[mod]], siteMeta, agg.by="month", format='flux rate')) %>%
         mutate(
+          Month = as.character(Month),
           SE = NA,
           CI_lower = NA,
           CI_upper = NA,
@@ -316,7 +332,13 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Season)
-            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='total', allow.incomplete=TRUE)
+            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
+            Qadj <- getFittedModel(allModels[[mod]])$Qadj
+            Tadj <- getFittedModel(allModels[[mod]])$Tadj
+            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+              as.data.frame() %>%
+              bind_cols(siteYearQ)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='total', allow.incomplete=TRUE)
           }
         }) %>%
         ungroup() %>%
@@ -344,6 +366,7 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
         predsSeason,
         siteMeta, custom=predsSeason['Season'], agg.by="Season", format='flux rate')) %>%
         mutate(
+          Season = as.character(Season),
           SE = NA,
           CI_lower = NA,
           CI_upper = NA,
@@ -384,7 +407,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
     message(paste0('   ', mod, '...'), appendLF = FALSE)
     if(is(allModels[[mod]], 'loadReg2')) {
       siteQ %>%
-        mutate(Water_Year=smwrBase::waterYear(siteQ[[dateColName]])) %>%
+        mutate(Water_Year=as.character(smwrBase::waterYear(siteQ[[dateColName]]))) %>%
         group_by(Water_Year) %>%
         do({
           # years with a lot of NaNs in se.pred really slow rloadest down. 
@@ -399,7 +422,13 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Water_Year)
-            predLoad(getFittedModel(allModels[[mod]]), newdata=siteYearQ, by='water year', allow.incomplete=TRUE)
+            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
+            Qadj <- getFittedModel(allModels[[mod]])$Qadj
+            Tadj <- getFittedModel(allModels[[mod]])$Tadj
+            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+              as.data.frame() %>%
+              bind_cols(siteYearQ)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='water year', allow.incomplete=TRUE)
           }
         }) %>%
         ungroup() %>%
@@ -414,7 +443,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
         select(Water_Year, Flux_Rate, SE, n, CI_lower, CI_upper, model)
     } else if(is(allModels[[mod]], 'loadBeale')) {
       data_frame(
-        Water_Year=unique(smwrBase::waterYear(siteQ[[dateColName]])),
+        Water_Year=as.character(unique(smwrBase::waterYear(siteQ[[dateColName]]))),
         Flux_Rate = NA,
         SE = NA,
         n = NA,
@@ -425,6 +454,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
       suppressWarnings(loadflex:::aggregateSolute(
         predsLoad[[mod]], siteMeta, agg.by="water year", format='flux rate')) %>%
         mutate(
+          Water_Year = as.character(Water_Year),
           SE = NA,
           CI_lower = NA,
           CI_upper = NA,
@@ -471,7 +501,13 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
     completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
       filter(Water_Year %in% completeWaterYears)
     (if(is(allModels[[mod]], 'loadReg2')) {
-      predLoad(getFittedModel(allModels[[mod]]), newdata=completeSiteQ, by='total', allow.incomplete=TRUE) %>%
+      # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
+      Qadj <- getFittedModel(allModels[[mod]])$Qadj
+      Tadj <- getFittedModel(allModels[[mod]])$Tadj
+      RLcompleteSiteQ <- rloadest:::setXLDat(data=completeSiteQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+        as.data.frame() %>%
+        bind_cols(completeSiteQ)
+      predLoad(getFittedModel(allModels[[mod]]), newdata=RLcompleteSiteQ, by='total', allow.incomplete=TRUE) %>%
         mutate(
           Flux_Rate = Flux * conv.load.rate,
           SE = SEP * conv.load.rate,
@@ -590,7 +626,7 @@ summarizePlots <- function(constitSiteInfo, outputFolder) {
 #' @param loadModels a list of load models
 #' @param estdata data.frame of estimation data (dates and discharges)
 #' @param siteMeta loadflex metadata object
-writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
+writePDFreport <- function(loadModels, fitdat, censdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
   
   # make plots. the first page is redundant across models
   modelNames <- data_frame(
@@ -602,20 +638,36 @@ writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion
   
   # page 1: input data with censoring
   eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
-    convertToEGRET(meta = siteMeta, data=fitdat, newdata = estdat))
+    convertToEGRET(meta = siteMeta, data=censdat, newdata = estdat))
   plotEGRET("multiPlotDataOverview", eList=eList)
   title(main="Input Data", line=-1, adj=0, outer=TRUE)
   title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
   mtext(text=sprintf('loadflex version %s', loadflexVersion), side=1, line=-1, adj=0, outer=TRUE, font=3)
   mtext(text=sprintf('run at %s', batchStartTime), side=1, line=-1, adj=1, outer=TRUE, font=3)
   
+  # create expanded siteQ data for rloadest models
+  rlmodids <- which(sapply(allModels, is, 'loadReg2'))
+  if(length(rlmodids) > 0) {
+    loadModel <- allModels[[rlmodids[1]]]
+    Qadj <- getFittedModel(loadModel)$Qadj
+    Tadj <- getFittedModel(loadModel)$Tadj
+    RLestdat <- rloadest:::setXLDat(data=estdat, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+      as.data.frame() %>%
+      bind_cols(estdat)
+  }
+
   for(m in which(!sapply(allModels, is, 'loadBeale'))) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
     modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
     modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
-    eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
-      convertToEGRET(load.model=loadModel, newdata=estdat))
+    if(is(loadModel, 'loadReg2')) {
+      eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
+        convertToEGRET(load.model=loadModel, newdata=RLestdat))
+    } else {
+      eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
+        convertToEGRET(load.model=loadModel, newdata=estdat))
+    }
     
     # pages 2,4,6,8
     par(mfrow=c(2,1), oma=c(0,0,1,0))
