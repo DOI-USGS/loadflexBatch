@@ -6,6 +6,7 @@ readInputs <- function(control_file) {
   expected <- c(
     "inputFolder","constituents","discharge","date","siteInfo",
     "models","resolutions","minDaysPerYear","regMaxNaNsPerMonth","regMaxNaNsPerSeason","regMaxNaNsPerYear",
+    "regBaseYear",
     "loadUnits","loadRateUnits",
     "outputFolder","outputTimestamp")
   miss <- setdiff(expected, names(inputs))
