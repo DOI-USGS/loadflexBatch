@@ -626,7 +626,7 @@ summarizePlots <- function(constitSiteInfo, outputFolder) {
 #' @param loadModels a list of load models
 #' @param estdata data.frame of estimation data (dates and discharges)
 #' @param siteMeta loadflex metadata object
-writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
+writePDFreport <- function(loadModels, fitdat, censdat, estdat, siteMeta, loadflexVersion, batchStartTime) {
   
   # make plots. the first page is redundant across models
   modelNames <- data_frame(
@@ -638,20 +638,36 @@ writePDFreport <- function(loadModels, fitdat, estdat, siteMeta, loadflexVersion
   
   # page 1: input data with censoring
   eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
-    convertToEGRET(meta = siteMeta, data=fitdat, newdata = estdat))
+    convertToEGRET(meta = siteMeta, data=censdat, newdata = estdat))
   plotEGRET("multiPlotDataOverview", eList=eList)
   title(main="Input Data", line=-1, adj=0, outer=TRUE)
   title(main=sprintf("%s-%s", siteMeta@site.id, 'ALL'), line=-1, adj=1, outer=TRUE)
   mtext(text=sprintf('loadflex version %s', loadflexVersion), side=1, line=-1, adj=0, outer=TRUE, font=3)
   mtext(text=sprintf('run at %s', batchStartTime), side=1, line=-1, adj=1, outer=TRUE, font=3)
   
+  # create expanded siteQ data for rloadest models
+  rlmodids <- which(sapply(allModels, is, 'loadReg2'))
+  if(length(rlmodids) > 0) {
+    loadModel <- allModels[[rlmodids[1]]]
+    Qadj <- getFittedModel(loadModel)$Qadj
+    Tadj <- getFittedModel(loadModel)$Tadj
+    RLestdat <- rloadest:::setXLDat(data=estdat, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+      as.data.frame() %>%
+      bind_cols(estdat)
+  }
+
   for(m in which(!sapply(allModels, is, 'loadBeale'))) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
     modelShort <- modelNames$short[modelNames$short == names(loadModels)[m]]
     modelLong <- modelNames$long[modelNames$short == names(loadModels)[m]]
-    eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
-      convertToEGRET(load.model=loadModel, newdata=estdat))
+    if(is(loadModel, 'loadReg2')) {
+      eList <- suppressWarnings( # ANA example data: This program requires at least 30 data points. Rolling means will not be calculated.
+        convertToEGRET(load.model=loadModel, newdata=RLestdat))
+    } else {
+      eList <- suppressWarnings( # CMP: Uncertainty estimates are unavailable. Proceeding with NAs
+        convertToEGRET(load.model=loadModel, newdata=estdat))
+    }
     
     # pages 2,4,6,8
     par(mfrow=c(2,1), oma=c(0,0,1,0))
