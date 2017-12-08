@@ -274,7 +274,7 @@ for(constitName in constits) { # constitName='NO3'
     conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
     
     # Predict daily fluxes
-    predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate)
+    predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate, regBaseYear=inputs$regBaseYear)
     
     # Predict monthly fluxes
     if('monthly' %in% inputs$resolutions) {

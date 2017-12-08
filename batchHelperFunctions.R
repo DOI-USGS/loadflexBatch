@@ -176,19 +176,38 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
   return(metrics)
 }
 
+#' Prepare estimation data for a loadReg2 regression model
+#'
+#' @param mod a fitted loadReg2 model
+#' @param estdat a data.frame of inputs for load prediction
+#' @param regBaseYear an integer water year to which predictions should be fixed
+#'   (e.g., 2006 to fix all dates to 2006-04-01) or NA to leave dates unfixed
+prepareRegEstdat <- function(mod, estdat, regBaseYear) {
+  Qadj <- getFittedModel(mod)$Qadj
+  Tadj <- getFittedModel(mod)$Tadj
+  if(is.na(regBaseYear)) {
+    RLestdat <- rloadest:::setXLDat(data=estdat, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+      as.data.frame() %>%
+      bind_cols(estdat)
+  } else {
+    RLestdat <- estdat
+    RLestdat$fixed.date <- as.Date(sprintf("%s-04-01", regBaseYear))
+    RLestdat <- rloadest:::setXLDat(data=RLestdat, flow=qColName, dates="fixed.date", Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+      as.data.frame() %>%
+      bind_cols(RLestdat)
+  }
+  return(RLestdat)
+}
+
 #' Produce daily load estimates
 #' 
 #' @param allModels list of fitted model objects
 #' @param siteQ data.frame of dates and discharges
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
-summarizeDaily <- function(allModels, siteQ, conv.load.rate) {
+summarizeDaily <- function(allModels, siteQ, conv.load.rate, regBaseYear=inputs$regBaseYear) {
   predsLoad <- lapply(allModels, function(mod) {
     (if(is(mod, 'loadReg2')) {
-      Qadj <- getFittedModel(mod)$Qadj
-      Tadj <- getFittedModel(mod)$Tadj
-      RLsiteQ <- rloadest:::setXLDat(data=siteQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-        as.data.frame() %>%
-        bind_cols(siteQ)
+      RLsiteQ <- prepareRegEstdat(mod, siteQ, regBaseYear)
       predictSolute(mod, "flux", RLsiteQ, se.pred=TRUE, date=TRUE)
     } else if(is(mod, 'loadComp')) {
       suppressWarnings(predictSolute(mod, "flux", siteQ, se.pred=FALSE, date=TRUE)) %>%
