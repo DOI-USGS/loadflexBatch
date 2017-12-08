@@ -16,6 +16,7 @@ minDaysPerYear: 345 # number of days required for a year to be included in the m
 regMaxNaNsPerMonth: 0 # affects rloadest models only: max NaN days allowed for including a month in monthly loads; estimates with NaNs can be very slow
 regMaxNaNsPerSeason: 0 # affects rloadest models only: max NaN days allowed for including a season in seasonal loads; estimates with NaNs can be very slow
 regMaxNaNsPerYear: 0 # affects rloadest models only: max NaN days allowed for including year in annual or multi-year loads; estimates with NaNs can be very slow
+regBaseYear: 2003 # can be a numeric year to fix all regression predictions to that year, or NA to leave them unfixed
 
 # Units for output
 loadUnits: "kg"
