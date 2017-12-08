@@ -170,7 +170,7 @@ for(constitName in constits) { # constitName='NO3'
     # Fit the rloadest model[s] (use the smwrQW censoring format)
     if('RL5' %in% inputs$models) {
       # L5: center(log(FLOW)) + center(dectime(DATE)) + fourier(DATE)
-      loadRegFormulaL5 <- formula('NO3 ~ 1 + lnQ + DECTIME + sin.DECTIME + cos.DECTIME')
+      loadRegFormulaL5 <- formula(paste(constitColName, '~ 1 + lnQ + DECTIME + sin.DECTIME + cos.DECTIME'))
       rloadest5param <- loadReg2(
         loadReg(
           loadRegFormulaL5, data = siteConstitRloadest,
@@ -186,7 +186,7 @@ for(constitName in constits) { # constitName='NO3'
     
     if('RL7' %in% inputs$models) {
       # L7: quadratic(log(FLOW)) + quadratic(dectime(DATE)) + fourier(DATE)
-      loadRegFormulaL7 <- formula('NO3 ~ 1 + lnQ + lnQ2 + DECTIME + DECTIME2 + sin.DECTIME + cos.DECTIME')
+      loadRegFormulaL7 <- formula(paste(constitColName, '~ 1 + lnQ + lnQ2 + DECTIME + DECTIME2 + sin.DECTIME + cos.DECTIME'))
       rloadest7param <- loadReg2(
         loadReg(
           loadRegFormulaL7, data = siteConstitRloadest, 
