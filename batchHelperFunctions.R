@@ -178,6 +178,9 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
 
 #' Prepare estimation data for a loadReg2 regression model
 #'
+#' Compute inputs for fully specified model equations (not model(7) but lnQ,
+#' DECTIME, etc.), possibly with fixed DECTIME
+#'
 #' @param mod a fitted loadReg2 model
 #' @param estdat a data.frame of inputs for load prediction
 #' @param regBaseYear an integer water year to which predictions should be fixed
@@ -185,16 +188,16 @@ summarizeMetrics <- function(allModels, siteMeta, loadflexVersion, batchStartTim
 prepareRegEstdat <- function(mod, estdat, regBaseYear) {
   Qadj <- getFittedModel(mod)$Qadj
   Tadj <- getFittedModel(mod)$Tadj
-  if(is.na(regBaseYear)) {
-    RLestdat <- rloadest:::setXLDat(data=estdat, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-      as.data.frame() %>%
-      bind_cols(estdat)
-  } else {
-    RLestdat <- estdat
-    RLestdat$fixed.date <- as.Date(sprintf("%s-04-01", regBaseYear))
-    RLestdat <- rloadest:::setXLDat(data=RLestdat, flow=qColName, dates="fixed.date", Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-      as.data.frame() %>%
-      bind_cols(RLestdat)
+  RLestdat <- rloadest:::setXLDat(data=estdat, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
+    as.data.frame() %>%
+    bind_cols(estdat)
+  if(!is.na(regBaseYear)) {
+    estdatF <- estdat[1,]
+    estdatF$fixed.date <- as.Date(sprintf("%s-04-01", regBaseYear))
+    RLestdatF <- rloadest:::setXLDat(data=estdatF, flow=qColName, dates="fixed.date", Qadj=Qadj, Tadj=Tadj, model.no=9)
+    RLestdat$DECTIME <- RLestdatF[[1,'DECTIME']]
+    RLestdat$DECTIME2 <- RLestdatF[[1,'DECTIME2']]
+    # leave sin.DECTIME and cos.DECTIME alone because we want to keep seasonality
   }
   return(RLestdat)
 }
@@ -204,7 +207,9 @@ prepareRegEstdat <- function(mod, estdat, regBaseYear) {
 #' @param allModels list of fitted model objects
 #' @param siteQ data.frame of dates and discharges
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
-summarizeDaily <- function(allModels, siteQ, conv.load.rate, regBaseYear=inputs$regBaseYear) {
+#' @param regBaseYear an integer water year to which predictions should be fixed
+#'   (e.g., 2006 to fix all dates to 2006-04-01) or NA to leave dates unfixed
+summarizeDaily <- function(allModels, siteQ, conv.load.rate, regBaseYear) {
   predsLoad <- lapply(allModels, function(mod) {
     (if(is(mod, 'loadReg2')) {
       RLsiteQ <- prepareRegEstdat(mod, siteQ, regBaseYear)
@@ -234,7 +239,9 @@ summarizeDaily <- function(allModels, siteQ, conv.load.rate, regBaseYear=inputs$
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
 #' @param loadflexVersion version of loadflex being used
 #' @param batchStartTime datetime this run was started
-summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+#' @param regBaseYear an integer water year to which predictions should be fixed
+#'   (e.g., 2006 to fix all dates to 2006-04-01) or NA to leave dates unfixed
+summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime) {
   message(" * generating monthly mean load estimates...")
   monthlySummary <- bind_rows(lapply(names(predsLoad), function(mod) {
     message(paste0('   ', mod, '...'), appendLF = FALSE)
@@ -245,25 +252,22 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
         do({
           # months with a lot of NaNs in se.pred really slow rloadest down. 
           # skip months exceeding the criterion (inputs$regMaxNaNsPerMonth)
-          siteYearQ <- .
+          siteMonthQ <- .
           dailyPreds <- predsLoad[[mod]] %>% 
             mutate(Month=format(predsLoad[[mod]][[dateColName]], '%Y-%m')) %>%
-            filter(Month == siteYearQ$Month[1])
+            filter(Month == siteMonthQ$Month[1])
           if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerMonth) {
-            message('skipping NaN-riddled ', as.character(siteYearQ$Month[1]), '...', appendLF = FALSE)
+            message('skipping NaN-riddled ', as.character(siteMonthQ$Month[1]), '...', appendLF = FALSE)
             data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
           } else {
             # filter to non-NA se.preds
-            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+            siteMonthQ <- filter(siteMonthQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Month)
-            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
-            Qadj <- getFittedModel(allModels[[mod]])$Qadj
-            Tadj <- getFittedModel(allModels[[mod]])$Tadj
-            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-              as.data.frame() %>%
-              bind_cols(siteYearQ)
+            # compute inputs for fully specified model equations (not model(7)
+            # but lnQ, DECTIME, etc.), possibly with fixed DECTIME
+            RLsiteMonthQ <- prepareRegEstdat(allModels[[mod]], siteMonthQ, regBaseYear)
             # pass filtered data for fully-specified equation to model
-            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='total', allow.incomplete=TRUE)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteMonthQ, by='total', allow.incomplete=TRUE)
           }
         }) %>%
         ungroup() %>%
@@ -324,7 +328,7 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
 #' @param loadflexVersion version of loadflex being used
 #' @param batchStartTime datetime this run was started
-summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime) {
   message(" * generating seasonal mean load estimates...")
   as_season <- function(dates) {
     ends <- c('03/30','06/30','09/30','12/31')
@@ -342,23 +346,20 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
         do({
           # months with a lot of NaNs in se.pred really slow rloadest down. 
           # skip months exceeding the criterion (inputs$regMaxNaNsPerSeason)
-          siteYearQ <- .
+          siteSeasonQ <- .
           dailyPreds <- predsLoad[[mod]] %>% 
             mutate(Season=as_season(predsLoad[[mod]][[dateColName]])) %>%
-            filter(Season == siteYearQ$Season[1])
+            filter(Season == siteSeasonQ$Season[1])
           if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
-            message('skipping NaN-riddled ', as.character(siteYearQ$Season[1]), '...', appendLF = FALSE)
+            message('skipping NaN-riddled ', as.character(siteSeasonQ$Season[1]), '...', appendLF = FALSE)
             data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
           } else {
-            siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
+            siteSeasonQ <- filter(siteSeasonQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Season)
-            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
-            Qadj <- getFittedModel(allModels[[mod]])$Qadj
-            Tadj <- getFittedModel(allModels[[mod]])$Tadj
-            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-              as.data.frame() %>%
-              bind_cols(siteYearQ)
-            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='total', allow.incomplete=TRUE)
+            # compute inputs for fully specified model equations (not model(7)
+            # but lnQ, DECTIME, etc.), possibly with fixed DECTIME
+            RLsiteSeasonQ <- prepareRegEstdat(allModels[[mod]], siteSeasonQ, regBaseYear)
+            predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteSeasonQ, by='total', allow.incomplete=TRUE)
           }
         }) %>%
         ungroup() %>%
@@ -421,7 +422,7 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
 #' @param loadflexVersion version of loadflex being used
 #' @param batchStartTime datetime this run was started
-summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime) {
   message(" * generating annual mean load estimates...")
   annualSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
     message(paste0('   ', mod, '...'), appendLF = FALSE)
@@ -442,12 +443,9 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Water_Year)
-            # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
-            Qadj <- getFittedModel(allModels[[mod]])$Qadj
-            Tadj <- getFittedModel(allModels[[mod]])$Tadj
-            RLsiteYearQ <- rloadest:::setXLDat(data=siteYearQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-              as.data.frame() %>%
-              bind_cols(siteYearQ)
+            # compute inputs for fully specified model equations (not model(7)
+            # but lnQ, DECTIME, etc.), possibly with fixed DECTIME
+            RLsiteYearQ <- prepareRegEstdat(allModels[[mod]], siteYearQ, regBaseYear)
             predLoad(getFittedModel(allModels[[mod]]), newdata=RLsiteYearQ, by='water year', allow.incomplete=TRUE)
           }
         }) %>%
@@ -509,7 +507,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
 #' @param conv.load.rate multiplier for converting loads as predicted from models to loads requested by batch user
 #' @param loadflexVersion version of loadflex being used
 #' @param batchStartTime datetime this run was started
-summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime) {
+summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime) {
   message(" * generating multi-year mean load estimates...", appendLF = FALSE)
   multiYearSummary <- bind_rows(lapply(names(predsLoad), function(mod) {
     message(paste0(mod, '...'), appendLF=FALSE)
@@ -521,12 +519,9 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
     completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
       filter(Water_Year %in% completeWaterYears)
     (if(is(allModels[[mod]], 'loadReg2')) {
-      # compute inputs for fully specified model equations (not model(7) but lnQ, DECTIME, etc.)
-      Qadj <- getFittedModel(allModels[[mod]])$Qadj
-      Tadj <- getFittedModel(allModels[[mod]])$Tadj
-      RLcompleteSiteQ <- rloadest:::setXLDat(data=completeSiteQ, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
-        as.data.frame() %>%
-        bind_cols(completeSiteQ)
+      # compute inputs for fully specified model equations (not model(7)
+      # but lnQ, DECTIME, etc.), possibly with fixed DECTIME
+      RLcompleteSiteQ <- prepareRegEstdat(allModels[[mod]], completeSiteQ, regBaseYear)
       predLoad(getFittedModel(allModels[[mod]]), newdata=RLcompleteSiteQ, by='total', allow.incomplete=TRUE) %>%
         mutate(
           Flux_Rate = Flux * conv.load.rate,

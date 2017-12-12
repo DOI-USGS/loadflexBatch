@@ -165,7 +165,7 @@ for(constitName in constits) { # constitName='NO3'
     Tadj <- rloadest:::loadestTadj(siteConstit[[dateColName]])
     RLpreppeddata <- rloadest:::setXLDat(data=siteConstit, flow=qColName, dates=dateColName, Qadj=Qadj, Tadj=Tadj, model.no=9) %>%
       as.data.frame()
-    siteConstitRloadest <- as.data.frame(c(as.list(RLpreppeddata), as.list(RLrawdata)))
+    RLsiteConstit <- as.data.frame(c(as.list(RLpreppeddata), as.list(RLrawdata)))
     
     # Fit the rloadest model[s] (use the smwrQW censoring format)
     if('RL5' %in% inputs$models) {
@@ -173,7 +173,7 @@ for(constitName in constits) { # constitName='NO3'
       loadRegFormulaL5 <- formula(paste(constitColName, '~ 1 + lnQ + DECTIME + sin.DECTIME + cos.DECTIME'))
       rloadest5param <- loadReg2(
         loadReg(
-          loadRegFormulaL5, data = siteConstitRloadest,
+          loadRegFormulaL5, data = RLsiteConstit,
           flow = qColName, dates = dateColName, time.step = "day",
           flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
           conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -189,7 +189,7 @@ for(constitName in constits) { # constitName='NO3'
       loadRegFormulaL7 <- formula(paste(constitColName, '~ 1 + lnQ + lnQ2 + DECTIME + DECTIME2 + sin.DECTIME + cos.DECTIME'))
       rloadest7param <- loadReg2(
         loadReg(
-          loadRegFormulaL7, data = siteConstitRloadest, 
+          loadRegFormulaL7, data = RLsiteConstit, 
           flow = qColName, dates = dateColName, time.step = "day",
           flow.units = getUnits(siteMeta, 'flow', format = "rloadest"), 
           conc.units = getUnits(siteMeta, 'conc', format = "rloadest"),
@@ -272,13 +272,14 @@ for(constitName in constits) { # constitName='NO3'
     model.load.rate.units <- getInfo(siteMeta, 'load.rate.units')
     input.load.rate.units <- loadflex:::translateFreeformToUnitted(inputs$loadRateUnits)
     conv.load.rate <- loadflex:::convertUnits(model.load.rate.units, input.load.rate.units)
+    regBaseYear <- inputs$regBaseYear
     
     # Predict daily fluxes
-    predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate, regBaseYear=inputs$regBaseYear)
+    predsLoad <- summarizeDaily(allModels, siteQ, conv.load.rate, regBaseYear)
     
     # Predict monthly fluxes
     if('monthly' %in% inputs$resolutions) {
-      monthlySummary <- summarizeMonthly(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      monthlySummary <- summarizeMonthly(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime)
       write.csv(
         x = monthlySummary, 
         file = file.path(inputs$outputFolder, constitName, "monthly", paste0(matchingSite, '.csv')),
@@ -287,7 +288,7 @@ for(constitName in constits) { # constitName='NO3'
     
     # Predict seasonal fluxes
     if('seasonal' %in% inputs$resolutions) {
-      seasonalSummary <- summarizeSeasonal(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      seasonalSummary <- summarizeSeasonal(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime)
       write.csv(
         x = seasonalSummary, 
         file = file.path(inputs$outputFolder, constitName, "seasonal", paste0(matchingSite, '.csv')),
@@ -296,7 +297,7 @@ for(constitName in constits) { # constitName='NO3'
     
     # Predict annual fluxes
     if(any(c('annual','multiYear') %in% inputs$resolutions)) {
-      annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      annualSummary <- summarizeAnnual(allModels, predsLoad, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime)
       if('annual' %in% inputs$resolutions) {
         write.csv(
           x = annualSummary, 
@@ -307,7 +308,7 @@ for(constitName in constits) { # constitName='NO3'
     
     # Predict the multi-year average flux, complete years only
     if('multiYear' %in% inputs$resolutions) {
-      multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, loadflexVersion, batchStartTime)
+      multiYearSummary <- summarizeMultiYear(allModels, predsLoad, annualSummary, inputs, siteQ, conv.load.rate, regBaseYear, loadflexVersion, batchStartTime)
       write.csv(
         x = multiYearSummary, 
         file = file.path(inputs$outputFolder, constitName, "multiYear", paste0(matchingSite, '.csv')),
@@ -322,7 +323,7 @@ for(constitName in constits) { # constitName='NO3'
         file = file.path(inputs$outputFolder, constitName, "plots", sprintf("%s.pdf", siteName)))
     
     # Add plots to the pdf we have open already
-    writePDFreport(loadModels = allModels, fitdat = siteConstit, censdat = siteConstitRloadest, estdat = siteQ, siteMeta = siteMeta,
+    writePDFreport(loadModels = allModels, fitdat = siteConstit, censdat = RLsiteConstit, estdat = siteQ, siteMeta = siteMeta,
                    loadflexVersion = loadflexVersion, batchStartTime = batchStartTime)
     
     # Close this constituent's pdf file
