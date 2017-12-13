@@ -38,9 +38,17 @@ combineSpecs <- function(inputs) {
   # convert dates to Date
   siteInfo <- mutate(
     siteInfo,
+    date.start.raw = date.start,
+    date.end.raw = date.end,
     date.start = as.Date(date.start, format='%Y-%m-%d'),
     date.end = as.Date(date.end, format='%Y-%m-%d')
   )
+  if(any(messups <- which(!is.na(siteInfo$date.start.raw) & is.na(siteInfo$date.start)))) {
+    stop("Failed to parse date.start for rows ", paste(messups, collapse=', '))
+  }
+  if(any(messups <- which(!is.na(siteInfo$date.end.raw) & is.na(siteInfo$date.end)))) {
+    stop("Failed to parse date.end for rows ", paste(messups, collapse=', '))
+  }
   
   # identify the constituent and flow variable named in siteInfo and inputs
   obsVars <- unique(siteInfo$constituent)
