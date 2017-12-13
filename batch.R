@@ -32,7 +32,7 @@ if(inputs$outputTimestamp) {
 constits <- unique(siteFileSets$constituent.CONC)
 nConstits <- length(constits)
 outConstitDirs <- file.path(rep(inputs$outputFolder, nConstits), constits)
-outDetailsDirs <- file.path(rep(outConstitDirs, each=5), rep(c("inputs",inputs$resolutions,"modelMetrics","plots"), times=nConstits))
+outDetailsDirs <- file.path(rep(outConstitDirs, each=3+length(inputs$resolutions)), rep(c("inputs",inputs$resolutions,"modelMetrics","plots"), times=nConstits))
 sapply(outDetailsDirs, dir.create, recursive=TRUE, showWarnings = FALSE)
 
 
