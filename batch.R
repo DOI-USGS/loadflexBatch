@@ -337,8 +337,9 @@ for(constitName in constits) { # constitName='NO3'
 # Combine the outputs from each site-constituent combination into a single table
 # per output type and constituent
 allInputs <- summarizeCsvs('inputs', siteFileSets, inputs$outputFolder) 
-allAnnual <- summarizeCsvs('annual', siteFileSets, inputs$outputFolder) 
-allMultiYear <- summarizeCsvs('multiYear', siteFileSets, inputs$outputFolder) 
 allModelMetrics <- summarizeCsvs('modelMetrics', siteFileSets, inputs$outputFolder)
+for(res in inputs$resolutions) {
+  summarizeCsvs(res, siteFileSets, inputs$outputFolder) 
+}
 # summarizePlots(siteFileSets, inputs$outputFolder) # doesn't work on my computer
 message("use Adobe or equivalent to combine pdfs into CONST_plots.pdf")
