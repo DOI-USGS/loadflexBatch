@@ -14,6 +14,8 @@ readInputs <- function(control_file) {
   extra <- setdiff(names(inputs), expected)
   if(length(extra) > 0) stop(paste0("missing fields in control file '", control_file,"': ", paste0("'", extra, "'", collapse=", ")))
   
+  if(inputs$regBaseYear == 'NA') inputs$regBaseYear <- NA
+  
   return(inputs)
 }
 
@@ -256,9 +258,18 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
           dailyPreds <- predsLoad[[mod]] %>% 
             mutate(Month=format(predsLoad[[mod]][[dateColName]], '%Y-%m')) %>%
             filter(Month == siteMonthQ$Month[1])
-          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerMonth) {
-            message('skipping NaN-riddled ', as.character(siteMonthQ$Month[1]), '...', appendLF = FALSE)
-            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          # error checking
+          label <- as.character(siteMonthQ$Month[1])
+          emptydf <- data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          if(nrow(dailyPreds) == 0) {
+            message('skipping empty ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerMonth) {
+            message('skipping NaN-riddled ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(is.finite(dailyPreds$se.pred))) == 0) {
+            message('skipping all-NaN ', label, '...', appendLF = FALSE)
+            emptydf
           } else {
             # filter to non-NA se.preds
             siteMonthQ <- filter(siteMonthQ, is.finite(dailyPreds$se.pred)) %>%
@@ -350,10 +361,20 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
           dailyPreds <- predsLoad[[mod]] %>% 
             mutate(Season=as_season(predsLoad[[mod]][[dateColName]])) %>%
             filter(Season == siteSeasonQ$Season[1])
-          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
-            message('skipping NaN-riddled ', as.character(siteSeasonQ$Season[1]), '...', appendLF = FALSE)
-            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          # error checking
+          label <- as.character(siteSeasonQ$Season[1])
+          emptydf <- data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          if(nrow(dailyPreds) == 0) {
+            message('skipping empty ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
+            message('skipping NaN-riddled ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(is.finite(dailyPreds$se.pred))) == 0) {
+            message('skipping all-NaN ', label, '...', appendLF = FALSE)
+            emptydf
           } else {
+            # filter to non-NA se.preds
             siteSeasonQ <- filter(siteSeasonQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Season)
             # compute inputs for fully specified model equations (not model(7)
@@ -437,9 +458,18 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
           dailyPreds <- predsLoad[[mod]] %>% 
             mutate(Water_Year=smwrBase::waterYear(predsLoad[[mod]][[dateColName]])) %>%
             filter(Water_Year == siteYearQ$Water_Year[1])
-          if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerYear) {
-            message('skipping NaN-riddled ', as.character(siteYearQ$Water_Year[1]), '...', appendLF = FALSE)
-            data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA)) # Ndays=NA ensures this year is skipped for multi-year estimate, too
+          # error checking
+          label <- as.character(siteYearQ$Water_Year[1])
+          emptydf <- data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+          if(nrow(dailyPreds) == 0) {
+            message('skipping empty ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(!is.finite(dailyPreds$se.pred))) > inputs$regMaxNaNsPerSeason) {
+            message('skipping NaN-riddled ', label, '...', appendLF = FALSE)
+            emptydf
+          } else if(length(which(is.finite(dailyPreds$se.pred))) == 0) {
+            message('skipping all-NaN ', label, '...', appendLF = FALSE)
+            emptydf
           } else {
             siteYearQ <- filter(siteYearQ, is.finite(dailyPreds$se.pred)) %>%
               select(-Water_Year)
@@ -519,10 +549,16 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
     completeSiteQ <- mutate(siteQ, Water_Year = smwrBase::waterYear(date)) %>%
       filter(Water_Year %in% completeWaterYears)
     (if(is(allModels[[mod]], 'loadReg2')) {
-      # compute inputs for fully specified model equations (not model(7)
-      # but lnQ, DECTIME, etc.), possibly with fixed DECTIME
-      RLcompleteSiteQ <- prepareRegEstdat(allModels[[mod]], completeSiteQ, regBaseYear)
-      predLoad(getFittedModel(allModels[[mod]]), newdata=RLcompleteSiteQ, by='total', allow.incomplete=TRUE) %>%
+      # error checking
+      label <- 'entire multiYear period'
+      emptydf <- data_frame(Flux=NaN, SEP=NaN, Ndays=as.numeric(NA))
+      if(nrow(completeSiteQ) == 0) {
+        message('skipping empty ', label, '...', appendLF = FALSE)
+        emptydf
+      } else {
+        RLcompleteSiteQ <- prepareRegEstdat(allModels[[mod]], completeSiteQ, regBaseYear)
+        predLoad(getFittedModel(allModels[[mod]]), newdata=RLcompleteSiteQ, by='total', allow.incomplete=TRUE)
+      } %>%
         mutate(
           Flux_Rate = Flux * conv.load.rate,
           SE = SEP * conv.load.rate,
