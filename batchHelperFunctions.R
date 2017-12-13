@@ -607,7 +607,7 @@ summarizeMultiYear <- function(allModels, predsLoad, annualSummary, inputs, site
 #' @param csvType the name of the summary type to combine
 #' @param constitSiteInfo the metadata table linking constituent and discharge files
 #' @param outputFolder the folder where output should be written
-summarizeCsvs <- function(csvType=c('inputs','annual','multiYear', 'modelMetrics'), 
+summarizeCsvs <- function(csvType=c('inputs', 'modelMetrics', 'monthly', 'seasonal', 'annual', 'multiYear'), 
                           constitSiteInfo, outputFolder) {
   csvType <- match.arg(csvType)
   
