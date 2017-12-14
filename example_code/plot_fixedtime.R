@@ -52,8 +52,6 @@ predsPT <- bind_rows(
 inputPT <- read_csv('three_ANA_sites/input/PT/RONC02800.csv') %>%
   mutate(flux = PT * Q * loadflex::flowconcToFluxConversion('m^3 s^-1', 'mg L^-1', 'kg y^-1'))
 
-# RL7 has no predictions - all NaN
-
 ggplot(predsPT, aes(x=as.Date(sprintf("%s-01", Month)), y=RL5.Flux_Rate)) +
   geom_step(aes(color=fixed, alpha='linealpha')) +
   geom_point(data=inputPT, aes(x=as.Date(date), y=flux), color='gold3', alpha=0.7) +
@@ -62,6 +60,15 @@ ggplot(predsPT, aes(x=as.Date(sprintf("%s-01", Month)), y=RL5.Flux_Rate)) +
   scale_alpha_manual(values=c(linealpha=0.7), guide=FALSE) +
   theme_bw()
 ggsave('example_code/fixed_month_PT_RONC02800_RL5.png', width=9, height=4)
+
+ggplot(predsPT, aes(x=as.Date(sprintf("%s-01", Month)), y=RL7.Flux_Rate)) +
+  geom_step(aes(color=fixed, alpha='linealpha')) +
+  geom_point(data=inputPT, aes(x=as.Date(date), y=flux), color='gold3', alpha=0.7) +
+  ggtitle("PT, RONC02800, RL7") + xlab("Date") + ylab("Flux Rate (kg y^-1)") +
+  scale_color_discrete("Base Year") +
+  scale_alpha_manual(values=c(linealpha=0.7), guide=FALSE) +
+  theme_bw()
+ggsave('example_code/fixed_month_PT_RONC02800_RL7.png', width=9, height=4)
 
 #### multiYear preds - NO3 ####
 
