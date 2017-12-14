@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Loadflex Batch Mode</h1>
 <h4 class="author"><em>David Watkins and Alison Appling</em></h4>
-<h4 class="date"><em>05 December, 2017</em></h4>
+<h4 class="date"><em>13 December, 2017</em></h4>
 
 </div>
 
@@ -265,11 +265,13 @@ div.tocify {
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">list.files</span>()</code></pre></div>
 <pre><code>##  [1] &quot;170925_ANA&quot;             &quot;ANA_tutorials&quot;         
 ##  [3] &quot;batch.R&quot;                &quot;batch_Beales&quot;          
-##  [5] &quot;batch_tutorial.Rmd&quot;     &quot;batchHelperFunctions.R&quot;
-##  [7] &quot;docs&quot;                   &quot;Hirsch_sites&quot;          
-##  [9] &quot;Hirsch_sites.yml&quot;       &quot;loadflexBatch.Rproj&quot;   
-## [11] &quot;newfeatures.css&quot;        &quot;README.md&quot;             
-## [13] &quot;three_ANA_sites&quot;        &quot;three_ANA_sites.yml&quot;</code></pre>
+##  [5] &quot;batch_tutorial.html&quot;    &quot;batch_tutorial.Rmd&quot;    
+##  [7] &quot;batchHelperFunctions.R&quot; &quot;docs&quot;                  
+##  [9] &quot;example_code&quot;           &quot;Hirsch_sites&quot;          
+## [11] &quot;Hirsch_sites.yml&quot;       &quot;loadflexBatch.Rproj&quot;   
+## [13] &quot;newfeatures.css&quot;        &quot;README.md&quot;             
+## [15] &quot;temp&quot;                   &quot;three_ANA_sites&quot;       
+## [17] &quot;three_ANA_sites.yml&quot;</code></pre>
 <p>Next, install the packages that the script depends on. In your console, run</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(
   <span class="kw">c</span>(<span class="st">&quot;devtools&quot;</span>, <span class="st">&quot;car&quot;</span>, <span class="st">&quot;dplyr&quot;</span>, <span class="st">&quot;ggplot2&quot;</span>, <span class="st">&quot;lubridate&quot;</span>, <span class="st">&quot;MASS&quot;</span>, <span class="st">&quot;Matrix&quot;</span>, <span class="st">&quot;yaml&quot;</span>),
@@ -334,16 +336,16 @@ div.tocify {
 ## 7     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        300         NO3
 ## 8     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        300          PT
 ## 9     ORIZ02900 ORIZ02900      Oriz -21.41 -47.87        350           Q
-##     units date.start   date.end
-## 1 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 2 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 3     cms 2002-10-01       &lt;NA&gt;
-## 4 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 5 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 6     cms       &lt;NA&gt;       &lt;NA&gt;
-## 7 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 8 mg L^-1       &lt;NA&gt;       &lt;NA&gt;
-## 9     cms       &lt;NA&gt; 2012-09-30</code></pre>
+##         consti.name   units date.start   date.end
+## 1           Nitrate mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 2 Total Phosophorus mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 3         Discharge     cms 2002-10-01       &lt;NA&gt;
+## 4           Nitrate mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 5 Total Phosophorus mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 6         Discharge     cms       &lt;NA&gt;       &lt;NA&gt;
+## 7           Nitrate mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 8 Total Phosophorus mg L^-1       &lt;NA&gt;       &lt;NA&gt;
+## 9         Discharge     cms       &lt;NA&gt; 2012-09-30</code></pre>
 <p>The values in the <code>site.id</code> column are the names (without extensions) of the .csv files within each constituent or discharge folder. The <code>site.name</code> column can contain a more human-readable site name. <code>lat</code> and <code>lon</code> give the coordinates of each site in degrees North and East, respectively.</p>
 <p>An important function of the <code>siteInfo</code> file is to match up input files describing constituent concentrations and river discharges. Water quality and discharge are usually measured at the exact same location, but sometimes water quality is sampled somewhat downstream or upstream of the flow gage. The script handles this possible discrepancy by expecting two columns for site identifiers in the <code>siteInfo</code> file. The column called <code>site.id</code> describes precise site locations. If water quality is measured downstream or upstream of the flow gage, the concentration and discharge rows in the <code>siteInfo</code> file should have different <code>site.id</code> values. The column called <code>matching.site</code> is used to match up pairs of water quality and discharge sites that you want to combine into a load model. The <code>matching.site</code> should always be the same for the concentration row and discharge row to be combined. Once combined, discharge will be scaled according to <code>basin.area</code> to estimate what discharge would have been if measured exactly at the water quality monitoring site.</p>
 <p>The values in the <code>constituent</code> column each name a constituent or discharge folder within the main input folder (“NO3”, “PT”, and “Q” in this example). Including discharge as a “constituent” makes this file more consise. The <code>units</code> column gives the units of measurement for each constituent-site combination.</p>
@@ -366,8 +368,12 @@ div.tocify {
 
 # Analysis specifications
 <span class="new">models: [&quot;RL5&quot;,&quot;RL7&quot;,&quot;CMP&quot;,&quot;INT&quot;,&quot;BRE&quot;]</span> # models to run; choose any/all of [&quot;RL5&quot;,&quot;RL7&quot;,&quot;CMP&quot;,&quot;INT&quot;,&quot;BRE&quot;]
+<span class="new2">resolutions: [&quot;monthly&quot;,&quot;seasonal&quot;,&quot;annual&quot;,&quot;multiYear&quot;]</span> # types of predictions to generate: choose any/all of [&quot;monthly&quot;,&quot;seasonal&quot;,&quot;annual&quot;,&quot;multiYear&quot;]
 <span class="yml">minDaysPerYear: 345</span> # number of days required for a year to be included in the multi-year average
+<span class="new2">regMaxNaNsPerMonth: 0</span> # affects rloadest models only: max NaN days allowed for including a month in monthly loads; estimates with NaNs can be very slow
+<span class="new2">regMaxNaNsPerSeason: 0</span> # affects rloadest models only: max NaN days allowed for including a season in seasonal loads; estimates with NaNs can be very slow
 <span class="new">regMaxNaNsPerYear: 0</span> # affects rloadest models only: max NaN days allowed for including year in annual or multi-year loads; estimates with NaNs can be very slow
+<span class="new2">regBaseYear: NA</span> # can be a numeric year to fix all regression predictions to that year, or NA to leave them unfixed
 
 # Units for output
 <span class="yml">loadUnits: &quot;kg&quot;</span>
@@ -393,14 +399,16 @@ div.tocify {
 <ul>
 <li><span class="new"><code>models</code></span> - a list of the models you want to fit during the batch run. There are five options, of which you can choose any or all.
 <ul>
-<li>RL5: 5-parameter <code>rloadest</code> regression model, with terms for Q, T, sin(T), cos(T), and an intercept</li>
-<li><span class="new">RL7</span>: 7-parameter <code>rloadest</code> regression model, adding terms for Q^2 and T^2</li>
+<li>RL5: 5-parameter <code>rloadest</code> regression model, with terms for T, Q, sin(T), cos(T), and an intercept: <code>log(C) ~ 1 + DECTIME + lnQ + sin.DECTIME + cos.DECTIME</code></li>
+<li><span class="new">RL7</span>: 7-parameter <code>rloadest</code> regression model, adding terms for T^2 and Q^2: <code>log(C) ~ 1 + DECTIME + DECTIME2 + lnQ + lnQ2 + sin.DECTIME + cos.DECTIME</code></li>
 <li>CMP: composite model combining RL5 with a rectangular interpolation of concentration residuals</li>
 <li>INT: rectangular interpolation of concentrations</li>
 <li><span class="new">BRE</span>: Beale’s ratio estimator</li>
 </ul></li>
+<li><span class="new2"><code>resolutions</code></span> - vector of resolutions desired for predictions. Options are “monthly”, “seasonal”, “annual”, and “multiYear”, and you can specify any one, several, or all of those options. The corresponding summary output files have names like NO23_monthly.csv, NO23_seasonal.csv, etc. and can be found in each constituent folder within the <code>outputFolder</code> specified later in this specifications file.</li>
 <li><code>minDaysPerYear</code> - minimum number of complete days for a year to be considered “complete”, such that annual and multi-year estimates will include this year</li>
-<li><span class="new"><code>regMaxNaNsPerYear</code></span> - <code>rloadest</code> models can be really slow at producing annual and multi-year estimates; the slowness occurs when any of the daily predictions come out as <code>NaN</code>. This number gives the maximum number of daily <code>NaN</code>s we’ll permit before giving up on a year and skipping it for both annual and multi-year estimates.</li>
+<li><span class="new2"><code>regMaxNaNsPerMonth</code>, <code>regMaxNaNsPerSeason</code></span>, and <span class="new"><code>regMaxNaNsPerYear</code></span> - <code>rloadest</code> models can be really slow at producing aggregate estimates; the slowness occurs when any of the daily predictions come out as <code>NaN</code>. This number gives the maximum number of daily <code>NaN</code>s we’ll permit before giving up and not attempting an estimate for a specific month, season, or year, respectively. Years that don’t meet the <code>regMaxNaNsPerYear</code> criterion are skipped in both the annual and the multi-year estimates.</li>
+<li><span class="new2"><code>regBaseYear</code></span> - specific to <code>rloadest</code> models. Setting this to a numeric year, e.g., <code>2012</code>, will cause regression load predictions at all resolutions (monthly, annual, etc.) to be generated with the long-term time terms fixed to that year, and specifically to April 1 of that year (the middle of the USGS water year). The long-term time terms are <code>DECTIME</code> for the RL5 model and <code>DECTIME</code> and <code>DECTIME2</code> for the RL7 model; the seasonal terms <code>sin.DECTIME</code> and <code>cos.DECTIME</code> remain dynamic.</li>
 </ul>
 </div>
 <div id="units-for-output" class="section level4">
@@ -426,7 +434,7 @@ div.tocify {
 <div id="running-the-script" class="section level2">
 <h2>Running the script</h2>
 <p>Open the batch script, <code>batch.R</code>, by clicking on it in the ‘Files’ pane in the lower right of your RStudio window. There is a basic description of the file at the top. Below that is a command to read in the configuration file for one of the included example datasets. It looks like this:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">inputs &lt;-<span class="st"> </span>yaml<span class="op">::</span><span class="kw">yaml.load_file</span>(<span class="st">'three_ANA_sites.yml'</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">control_file &lt;-<span class="st"> 'three_ANA_sites.yml'</span></code></pre></div>
 <p>The default configuration file is <code>three_ANA_sites.yml</code>. To run another example (e.g., <code>Hirsch_sites.yml</code>) or your own file, edit the file name in the above line of the <code>batch.R</code> script.</p>
 <p>Once your configuration file is named, you can source the script. Find the “Source” button in the top right of the text editor where you’re viewing the script, click the drop-down error, and choose “Source”. You’ll see a whole lot of package startup messages:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Attaching package<span class="op">:</span><span class="st"> </span>‘dplyr’
@@ -541,7 +549,7 @@ Warning messages<span class="op">:</span>
 </div>
 <div id="behind-the-scenes" class="section level2">
 <h2>Behind the scenes</h2>
-<p>The script reads, processes, and writes output for each site/consituent combination individually. There are five available models. The <span class="new">two</span> regression models, <code>RL5</code> and <span class="new"><code>RL7</code></span>, are implemented within the <code>rloadest</code> R package. The composite (<code>CMP</code>) and interpolation (<code>INT</code>) models are implemented within the <code>loadflex</code> package. <code>loadflex</code> provides a consistent interface to all four of these models. <span class="new">The fifth model, Beale’s Ratio Estimator (<code>BRE</code>), is temporarily implemented as a handful of scripts within this <code>loadflexBatch</code> project - see the <code>batch_Beales</code> folder.</span></p>
+<p>The script reads, processes, and writes output for each site/consituent combination individually. There are five available models. The <span class="new">two</span> regression models, <code>RL5</code> and <span class="new"><code>RL7</code></span>, are implemented within the <code>rloadest</code> R package. The composite (<code>CMP</code>) and interpolation (<code>INT</code>) models are implemented within the <code>loadflex</code> package. <code>loadflex</code> provides a consistent interface to all four of these models. <span class="new">The fifth model, Beale’s Ratio Estimator (<code>BRE</code>), is implemented as a handful of scripts within this <code>loadflexBatch</code> project - see the <code>batch_Beales</code> folder.</span></p>
 <p>If a constituent dataset includes censored data (i.e., <code>status</code> flags of 2), those data are passed to the <code>loadReg2</code> models in the censored data format required by <code>rloadest</code>. The composite and interpolation models and Beale’s Ratio Estimator all use the crude approximation that a censored value is equal to 1/2 of the reported detection limit; e.g., a censored value of <code>&lt;0.8</code> will be treated as <code>0.4</code> in these three models.</p>
 <p>The script uses several built-in <code>loadflex</code> functions to create the outputs in R, which the script then writes to files. Those functions include <code>summarizeInputs</code>, <code>summarizeModel</code>, and <code>predictSolute</code>. Descriptions of these functions can be found by typing <code>?</code> followed by the function name at the R prompt.</p>
 </div>
@@ -569,7 +577,7 @@ Warning messages<span class="op">:</span>
 </div>
 <div id="whats-next" class="section level2">
 <h2>What’s next?</h2>
-<p>Create your own input files following the conventions above. Edit line 9 of <code>batch.R</code> to point to your own configuration YAML file, e.g.,</p>
+<p>Create your own input files following the conventions above. Edit line of <code>batch.R</code> to point to your own configuration YAML file, e.g.,</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">inputs &lt;-<span class="st"> </span>yaml<span class="op">::</span><span class="kw">yaml.load_file</span>(<span class="st">'my_own_sites.yml'</span>)</code></pre></div>
 <p>Then click Source to produce outputs for your sites.</p>
 <p>Inspect the output files to learn about the size and quality of the input data, how well each model performed, and how the model predictions varied across models and sites. You’re on your way!</p>

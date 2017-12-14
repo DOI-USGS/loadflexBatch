@@ -131,8 +131,12 @@ The final input file, the "configuration file", lives outside your main input fo
 
 # Analysis specifications
 <span class="new">models: ["RL5","RL7","CMP","INT","BRE"]</span> # models to run; choose any/all of ["RL5","RL7","CMP","INT","BRE"]
+<span class="new2">resolutions: ["monthly","seasonal","annual","multiYear"]</span> # types of predictions to generate: choose any/all of ["monthly","seasonal","annual","multiYear"]
 <span class="yml">minDaysPerYear: 345</span> # number of days required for a year to be included in the multi-year average
+<span class="new2">regMaxNaNsPerMonth: 0</span> # affects rloadest models only: max NaN days allowed for including a month in monthly loads; estimates with NaNs can be very slow
+<span class="new2">regMaxNaNsPerSeason: 0</span> # affects rloadest models only: max NaN days allowed for including a season in seasonal loads; estimates with NaNs can be very slow
 <span class="new">regMaxNaNsPerYear: 0</span> # affects rloadest models only: max NaN days allowed for including year in annual or multi-year loads; estimates with NaNs can be very slow
+<span class="new2">regBaseYear: NA</span> # can be a numeric year to fix all regression predictions to that year, or NA to leave them unfixed
 
 # Units for output
 <span class="yml">loadUnits: "kg"</span>
@@ -155,13 +159,15 @@ The configuration file is broken into four sections: "Input files", "Analysis sp
 
 #### Analysis specifications
 * <span class="new">`models`</span> - a list of the models you want to fit during the batch run. There are five options, of which you can choose any or all.
-    - RL5: 5-parameter `rloadest` regression model, with terms for Q, T, sin(T), cos(T), and an intercept
-    - <span class="new">RL7</span>: 7-parameter `rloadest` regression model, adding terms for Q^2 and T^2
+    - RL5: 5-parameter `rloadest` regression model, with terms for T, Q, sin(T), cos(T), and an intercept: `log(C) ~ 1 + DECTIME + lnQ + sin.DECTIME + cos.DECTIME`
+    - <span class="new">RL7</span>: 7-parameter `rloadest` regression model, adding terms for T^2 and Q^2: `log(C) ~ 1 + DECTIME + DECTIME2 + lnQ + lnQ2 + sin.DECTIME + cos.DECTIME`
     - CMP: composite model combining RL5 with a rectangular interpolation of concentration residuals
     - INT: rectangular interpolation of concentrations
     - <span class="new">BRE</span>: Beale's ratio estimator
+* <span class="new2">`resolutions`</span> - vector of resolutions desired for predictions. Options are "monthly", "seasonal", "annual", and "multiYear", and you can specify any one, several, or all of those options. The corresponding summary output files have names like NO23_monthly.csv, NO23_seasonal.csv, etc. and can be found in each constituent folder within the `outputFolder` specified later in this specifications file.
 * `minDaysPerYear` - minimum number of complete days for a year to be considered "complete", such that annual and multi-year estimates will include this year
-* <span class="new">`regMaxNaNsPerYear`</span> - `rloadest` models can be really slow at producing annual and multi-year estimates; the slowness occurs when any of the daily predictions come out as `NaN`. This number gives the maximum number of daily `NaN`s we'll permit before giving up on a year and skipping it for both annual and multi-year estimates.
+* <span class="new2">`regMaxNaNsPerMonth`, `regMaxNaNsPerSeason`</span>, and <span class="new">`regMaxNaNsPerYear`</span> - `rloadest` models can be really slow at producing aggregate estimates; the slowness occurs when any of the daily predictions come out as `NaN`. This number gives the maximum number of daily `NaN`s we'll permit before giving up and not attempting an estimate for a specific month, season, or year, respectively. Years that don't meet the `regMaxNaNsPerYear` criterion are skipped in both the annual and the multi-year estimates.
+* <span class="new2">`regBaseYear`</span> - specific to `rloadest` models. Setting this to a numeric year, e.g., `2012`, will cause regression load predictions at all resolutions (monthly, annual, etc.) to be generated with the long-term time terms fixed to that year, and specifically to April 1 of that year (the middle of the USGS water year). The long-term time terms are `DECTIME` for the RL5 model and `DECTIME` and `DECTIME2` for the RL7 model; the seasonal terms `sin.DECTIME` and `cos.DECTIME` remain dynamic.
 
 #### Units for output
 * `loadUnits` - the units of load predictions. We haven't tested much besides "kg", so that's what we recommend.
@@ -302,7 +308,7 @@ And done!
 
 ## Behind the scenes
 
-The script reads, processes, and writes output for each site/consituent combination individually. There are five available models. The <span class="new">two</span> regression models, `RL5` and <span class="new">`RL7`</span>, are implemented within the `rloadest` R package. The composite (`CMP`) and interpolation (`INT`) models are implemented within the `loadflex` package. `loadflex` provides a consistent interface to all four of these models. <span class="new">The fifth model, Beale's Ratio Estimator (`BRE`), is temporarily implemented as a handful of scripts within this `loadflexBatch` project - see the `batch_Beales` folder.</span>
+The script reads, processes, and writes output for each site/consituent combination individually. There are five available models. The <span class="new">two</span> regression models, `RL5` and <span class="new">`RL7`</span>, are implemented within the `rloadest` R package. The composite (`CMP`) and interpolation (`INT`) models are implemented within the `loadflex` package. `loadflex` provides a consistent interface to all four of these models. <span class="new">The fifth model, Beale's Ratio Estimator (`BRE`), is implemented as a handful of scripts within this `loadflexBatch` project - see the `batch_Beales` folder.</span>
 
 If a constituent dataset includes censored data (i.e., `status` flags of 2), those data are passed to the `loadReg2` models in the censored data format required by `rloadest`. The composite and interpolation models and Beale's Ratio Estimator all use the crude approximation that a censored value is equal to 1/2 of the reported detection limit; e.g., a censored value of `<0.8` will be treated as `0.4` in these three models.
 
