@@ -10,4 +10,4 @@ For a description of this repository's contents, and instructions on how to use
 the scripts contained here, see 
 [batch_tutorial.html](https://usgs-r.github.io/loadflexBatch/batch_tutorial.html).
 
-Updated 7/6/2017
+Updated 1/29/2019
