@@ -264,7 +264,7 @@ summarizeMonthly <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate
           # skip months exceeding the criterion (inputs$regMaxNaNsPerMonth)
           siteMonthQ <- .
           dailyPreds <- predsLoad[[mod]] %>% 
-            mutate(Month=format(predsLoad[[mod]][[dateColName]], '%Y-%m')) %>%
+            mutate(Month=format(predsLoad[[mod]][['date']], '%Y-%m')) %>%
             filter(Month == siteMonthQ$Month[1])
           # error checking
           label <- as.character(siteMonthQ$Month[1])
@@ -367,7 +367,7 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
           # skip months exceeding the criterion (inputs$regMaxNaNsPerSeason)
           siteSeasonQ <- .
           dailyPreds <- predsLoad[[mod]] %>% 
-            mutate(Season=as_season(predsLoad[[mod]][[dateColName]])) %>%
+            mutate(Season=as_season(predsLoad[[mod]][['date']])) %>%
             filter(Season == siteSeasonQ$Season[1])
           # error checking
           label <- as.character(siteSeasonQ$Season[1])
@@ -411,7 +411,7 @@ summarizeSeasonal <- function(allModels, predsLoad, inputs, siteQ, conv.load.rat
         CI_upper = NA,
         model=mod)
     } else {
-      predsSeason <- predsLoad[[mod]] %>% mutate(Season=as_season(predsLoad[[mod]][[dateColName]]))
+      predsSeason <- predsLoad[[mod]] %>% mutate(Season=as_season(predsLoad[[mod]][['date']]))
       suppressWarnings(loadflex:::aggregateSolute(
         predsSeason,
         siteMeta, custom=predsSeason['Season'], agg.by="Season", format='flux rate')) %>%
@@ -464,7 +464,7 @@ summarizeAnnual <- function(allModels, predsLoad, inputs, siteQ, conv.load.rate,
           # skip years exceeding the criterion (inputs$regMaxNaNsPerYear)
           siteYearQ <- .
           dailyPreds <- predsLoad[[mod]] %>% 
-            mutate(Water_Year=smwrBase::waterYear(predsLoad[[mod]][[dateColName]])) %>%
+            mutate(Water_Year=smwrBase::waterYear(predsLoad[[mod]][['date']])) %>%
             filter(Water_Year == siteYearQ$Water_Year[1])
           # error checking
           label <- as.character(siteYearQ$Water_Year[1])
@@ -714,7 +714,7 @@ writePDFreport <- function(loadModels, fitdat, censdat, estdat, siteMeta, loadfl
       as.data.frame() %>%
       bind_cols(estdat)
   }
-
+  
   for(m in which(!sapply(allModels, is, 'loadBeale'))) {
     loadModel <- loadModels[[m]]
     loadModel@metadata <- siteMeta
